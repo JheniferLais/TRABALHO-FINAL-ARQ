@@ -1,9 +1,9 @@
 package com.sched.api.service;
 
-import java.util.List;
-
 import com.sched.api.repository.AIRepository;
+import com.sched.api.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import com.sched.api.domain.User;
@@ -12,6 +12,8 @@ import com.sched.api.dto.request.AIDemandDataRequest;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AIService {
@@ -19,9 +21,10 @@ public class AIService {
     private final AIRepository AIRepository;
     private final RestTemplate restTemplate;
 
-    public List<AIPredictionResponse> getPredictions(User user) {
+    @Transactional(readOnly = true)
+    public List<AIPredictionResponse> getPredictions() {
 
-        List<AIDemandDataRequest> demandData = getDemandData(user);
+        List<AIDemandDataRequest> demandData = getDemandData();
 
         String FLASK_URL = "http://127.0.0.1:5000/predict";
 
@@ -35,9 +38,9 @@ public class AIService {
         return List.of(response);
     }
 
-    public List<AIDemandDataRequest> getDemandData(User user) {
-
-        Long companyId = user.getCompany().getId();
+    public List<AIDemandDataRequest> getDemandData() {
+        User authUser = SecurityUtils.getAuthenticatedUser();
+        Long companyId = authUser.getCompany().getId();
 
         return AIRepository.getDemandDataByCompany(companyId);
     }

@@ -19,9 +19,7 @@ public class AIController {
     private final AIService aiService;
 
     @GetMapping("/predictions")
-    public List<AIPredictionResponse> getPredictions(
-            @AuthenticationPrincipal User user
-    ) {
-        return aiService.getPredictions(user);
+    public List<AIPredictionResponse> getPredictions() {
+        return aiService.getPredictions();
     }
 }
