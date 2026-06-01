@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 import com.sched.api.domain.User;
 import com.sched.api.dto.response.AiPredictionResponse;
-import com.sched.api.dto.response.DemandDataResponse;
 import com.sched.api.service.AiService;
 
 import lombok.RequiredArgsConstructor;
@@ -18,13 +17,6 @@ import lombok.RequiredArgsConstructor;
 public class AiController {
 
     private final AiService aiService;
-
-    @GetMapping("/demand-data")
-    public List<DemandDataResponse> getDemandData(
-            @AuthenticationPrincipal User user
-    ) {
-        return aiService.getDemandData(user);
-    }
 
     @GetMapping("/predictions")
     public List<AiPredictionResponse> getPredictions(

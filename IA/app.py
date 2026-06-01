@@ -20,6 +20,8 @@ def predict():
         df = pd.DataFrame(payload)
         strategy = "rf"
 
+    print(f"\n[IA] Recebi requisição! Estratégia: {strategy} | Linhas recebidas: {len(df)}", flush=True)
+
     if strategy not in LIMITES_MINIMOS:
         return jsonify({"status": "INVALID_STRATEGY", "message": "Estratégia não reconhecida"}), 400
 
@@ -49,7 +51,10 @@ def predict():
     for entry in alerts:
         entry.update({"modelUsed": modelo_alvo, "modelMAE": round(mae, 2)})
 
-    return jsonify(alerts)
+    # Remove qualquer produto cujo alerta seja "OK"
+    alertas_criticos = [item for item in alerts if item["alert"] != "OK"]
+
+    return jsonify(alertas_criticos)
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
