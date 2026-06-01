@@ -2,43 +2,43 @@ package com.sched.api.service;
 
 import java.util.List;
 
-import com.sched.api.repository.IARepository;
+import com.sched.api.repository.AIRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import com.sched.api.domain.User;
-import com.sched.api.dto.response.AiPredictionResponse;
-import com.sched.api.dto.request.DemandDataRequest;
+import com.sched.api.dto.response.AIPredictionResponse;
+import com.sched.api.dto.request.AIDemandDataRequest;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class AiService {
+public class AIService {
 
-    private final IARepository iaRepository;
+    private final AIRepository AIRepository;
     private final RestTemplate restTemplate;
 
-    public List<AiPredictionResponse> getPredictions(User user) {
+    public List<AIPredictionResponse> getPredictions(User user) {
 
-        List<DemandDataRequest> demandData = getDemandData(user);
+        List<AIDemandDataRequest> demandData = getDemandData(user);
 
         String FLASK_URL = "http://127.0.0.1:5000/predict";
 
-        AiPredictionResponse[] response =
+        AIPredictionResponse[] response =
                 restTemplate.postForObject(
                         FLASK_URL,
                         demandData,
-                        AiPredictionResponse[].class
+                        AIPredictionResponse[].class
                 );
 
         return List.of(response);
     }
 
-    public List<DemandDataRequest> getDemandData(User user) {
+    public List<AIDemandDataRequest> getDemandData(User user) {
 
         Long companyId = user.getCompany().getId();
 
-        return iaRepository.getDemandDataByCompany(companyId);
+        return AIRepository.getDemandDataByCompany(companyId);
     }
 }

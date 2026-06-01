@@ -6,20 +6,20 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import com.sched.api.domain.User;
-import com.sched.api.dto.response.AiPredictionResponse;
-import com.sched.api.service.AiService;
+import com.sched.api.dto.response.AIPredictionResponse;
+import com.sched.api.service.AIService;
 
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/ai")
 @RequiredArgsConstructor
-public class AiController {
+public class AIController {
 
-    private final AiService aiService;
+    private final AIService aiService;
 
     @GetMapping("/predictions")
-    public List<AiPredictionResponse> getPredictions(
+    public List<AIPredictionResponse> getPredictions(
             @AuthenticationPrincipal User user
     ) {
         return aiService.getPredictions(user);

@@ -5,7 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AiPredictionResponse {
+public class AIPredictionResponse {
     private String productName;
     private Integer stockQuantity;
     private Integer prediction7Days;

@@ -1,17 +1,17 @@
 package com.sched.api.repository;
 
 import com.sched.api.domain.Sale;
-import com.sched.api.dto.request.DemandDataRequest;
+import com.sched.api.dto.request.AIDemandDataRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface IARepository extends JpaRepository<Sale, Long> {
+public interface AIRepository extends JpaRepository<Sale, Long> {
 
     @Query("""
-        SELECT new com.sched.api.dto.request.DemandDataRequest(
+        SELECT new com.sched.api.dto.request.AIDemandDataRequest(
             p.id,
             p.name,
             p.category,
@@ -30,7 +30,7 @@ public interface IARepository extends JpaRepository<Sale, Long> {
             p.category,
             p.price
     """)
-    List<DemandDataRequest> getDemandDataByCompany(
+    List<AIDemandDataRequest> getDemandDataByCompany(
             @Param("companyId") Long companyId
     );
 }
