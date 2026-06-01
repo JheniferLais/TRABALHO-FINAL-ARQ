@@ -9,7 +9,6 @@ import com.sched.api.domain.User;
 import com.sched.api.dto.response.AiPredictionResponse;
 import com.sched.api.dto.response.DemandDataResponse;
 import com.sched.api.repository.SaleRepository;
-import com.sched.api.repository.StockRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 public class AiService {
 
     private final SaleRepository saleRepository;
-    private final StockRepository stockRepository;
     private final RestTemplate restTemplate;
 
     public List<DemandDataResponse> getDemandData(User user) {
