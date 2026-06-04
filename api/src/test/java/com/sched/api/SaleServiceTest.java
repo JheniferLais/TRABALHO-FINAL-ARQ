@@ -92,34 +92,53 @@ class SaleServiceTest {
     }
 
     @Test
-    void getAll_QuandoExistemVendas_RetornaListaDeVendas() {
+    void getAll_QuandoExistemVendasDaEmpresa_RetornaListaDeVendas() {
         // Arrange
-        final Sale sale = criarVendaValida(SALE_QUANTITY, SALE_TOTAL_PRICE);
+        final Sale sale = criarVendaValida(
+                SALE_QUANTITY,
+                SALE_TOTAL_PRICE
+        );
+        mockUsuarioAutenticado();
 
-        when(saleRepository.findAll()).thenReturn(List.of(sale));
+        try (MockedStatic<SecurityUtils> securityUtils =
+                     mockSecurityUtils(authenticatedUser)) {
 
-        // Act
-        final List<SaleResponse> response = saleService.getAll();
+            when(saleRepository.findByProduct_Company_Id(COMPANY_ID))
+                    .thenReturn(List.of(sale));
 
-        // Assert
-        assertEquals(1, response.size());
+            // Act
+            final List<SaleResponse> response = saleService.getAll();
 
-        verify(saleRepository).findAll();
+            // Assert
+            assertEquals(1, response.size());
+
+            verify(saleRepository)
+                    .findByProduct_Company_Id(COMPANY_ID);
+        }
     }
 
     @Test
-    void getAll_QuandoNaoExistemVendas_RetornaListaVazia() {
+    void getAll_QuandoNaoExistemVendasDaEmpresa_RetornaListaVazia() {
         // Arrange
-        when(saleRepository.findAll()).thenReturn(List.of());
+        mockUsuarioAutenticado();
 
-        // Act
-        final List<SaleResponse> response = saleService.getAll();
+        try (MockedStatic<SecurityUtils> securityUtils =
+                     mockSecurityUtils(authenticatedUser)) {
 
-        // Assert
-        assertEquals(0, response.size());
+            when(saleRepository.findByProduct_Company_Id(COMPANY_ID))
+                    .thenReturn(List.of());
 
-        verify(saleRepository).findAll();
+            // Act
+            final List<SaleResponse> response = saleService.getAll();
+
+            // Assert
+            assertEquals(0, response.size());
+
+            verify(saleRepository)
+                    .findByProduct_Company_Id(COMPANY_ID);
+        }
     }
+
 
     @Test
     void create_QuandoEstoqueSuficiente_RegistraVendaEDecrementaEstoque() {
