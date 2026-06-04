@@ -12,11 +12,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Resolves the authenticated company and delegates the actual evaluation to
- * the matching {@link StockAlertRule} strategy. Spring injects every rule bean,
- * so adding a new alert kind requires no change here.
- */
 @Service
 public class AlertService {
 

@@ -9,9 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Flags stock batches whose expiration date falls within the next 30 days.
- */
 @Component
 @RequiredArgsConstructor
 public class ExpiringStockRule implements StockAlertRule {

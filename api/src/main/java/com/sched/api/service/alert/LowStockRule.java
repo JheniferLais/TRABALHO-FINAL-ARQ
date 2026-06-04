@@ -8,10 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * Flags stock batches whose remaining quantity is at or below the
- * replenishment threshold.
- */
 @Component
 @RequiredArgsConstructor
 public class LowStockRule implements StockAlertRule {
