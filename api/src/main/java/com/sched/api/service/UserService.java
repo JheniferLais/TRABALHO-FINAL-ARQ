@@ -2,12 +2,12 @@ package com.sched.api.service;
 
 import com.sched.api.dto.request.UserUpdateRequest;
 import com.sched.api.dto.response.UserResponse;
+import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.domain.User;
 import com.sched.api.repository.UserRepository;
 import com.sched.api.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +25,7 @@ public class UserService {
         User authUser = SecurityUtils.getAuthenticatedUser();
 
         User user = userRepository.findByEmail(authUser.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("user not found or inactive"));
+                .orElseThrow(ResourceNotFoundException::new);
 
         return mapToResponse(user);
     }
@@ -44,7 +44,7 @@ public class UserService {
         User authUser = SecurityUtils.getAuthenticatedUser();
 
         User user = userRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(ResourceNotFoundException::new);
 
         validateCompanyAccess(authUser, user);
 
@@ -56,11 +56,11 @@ public class UserService {
         User authUser = SecurityUtils.getAuthenticatedUser();
 
         if (!authUser.getId().equals(id) && !isAdmin(authUser)) {
-            throw new AccessDeniedException("Not authorized to update this profile");
+            throw new AccessDeniedException();
         }
 
         User userToUpdate = userRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(ResourceNotFoundException::new);
 
         validateCompanyAccess(authUser, userToUpdate);
 
@@ -75,7 +75,7 @@ public class UserService {
         User authUser = SecurityUtils.getAuthenticatedUser();
 
         User user = userRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(ResourceNotFoundException::new);
 
         validateCompanyAccess(authUser, user);
 
@@ -86,7 +86,7 @@ public class UserService {
 
     private void validateCompanyAccess(User authUser, User targetUser) {
         if (!authUser.getCompany().getId().equals(targetUser.getCompany().getId())) {
-            throw new AccessDeniedException("Access denied: different company");
+            throw new AccessDeniedException();
         }
     }
 

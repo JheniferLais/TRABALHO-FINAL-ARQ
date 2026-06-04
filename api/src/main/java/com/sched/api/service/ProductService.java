@@ -6,13 +6,13 @@ import com.sched.api.domain.User;
 import com.sched.api.dto.request.ProductRequest;
 import com.sched.api.dto.request.StockRequest;
 import com.sched.api.dto.response.ProductResponse;
+import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ProductHasStockException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
 import com.sched.api.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +35,7 @@ public class ProductService {
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
-            throw new AccessDeniedException("Not authorized to create product, user/company has be deleted");
+            throw new AccessDeniedException();
         }
 
         return productRepository.findAllByCompanyIdAndDeletedFalse(authUser.getCompany().getId())
@@ -57,7 +57,7 @@ public class ProductService {
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
-            throw new AccessDeniedException("Not authorized to create product, user/company has be deleted");
+            throw new AccessDeniedException();
         }
 
         Product product = Product.builder()
@@ -102,7 +102,7 @@ public class ProductService {
                 .existsByProductIdAndQuantityGreaterThanAndProduct_DeletedFalse(product.getId(), 0);
 
         if (hasActiveStock) {
-            throw new ProductHasStockException(product.getId());
+            throw new ProductHasStockException();
         }
 
         product.setDeleted(true);
@@ -115,14 +115,14 @@ public class ProductService {
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
-            throw new AccessDeniedException("Not authorized to product, user/company has be deleted");
+            throw new AccessDeniedException();
         }
 
         Product product = productRepository.findByIdAndDeletedFalse(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found or inactive with id: " + productId));
+                .orElseThrow(ResourceNotFoundException::new);
 
         if(!Objects.equals(product.getCompany().getId(), company.getId())){
-            throw new AccessDeniedException("Access denied: different company");
+            throw new AccessDeniedException();
         }
 
         return product;

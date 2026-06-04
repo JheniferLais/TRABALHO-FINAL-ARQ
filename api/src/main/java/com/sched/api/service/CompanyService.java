@@ -2,14 +2,13 @@ package com.sched.api.service;
 
 import com.sched.api.domain.Company;
 import com.sched.api.domain.User;
-import com.sched.api.dto.request.CompanyRequest;
 import com.sched.api.dto.request.CompanyUpdateRequest;
 import com.sched.api.dto.response.CompanyResponse;
+import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.CompanyRepository;
 import com.sched.api.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,12 +60,12 @@ public class CompanyService {
 
     private Company findActiveCompanyOrThrow(Long id) {
         return companyRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Company not found or inactive with id: " + id));
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     private void validateCompanyAccess(User authUser, Company targetCompany) {
         if (!authUser.getCompany().getId().equals(targetCompany.getId())) {
-            throw new AccessDeniedException("You do not have permission to access another company's data.");
+            throw new AccessDeniedException();
         }
     }
 }

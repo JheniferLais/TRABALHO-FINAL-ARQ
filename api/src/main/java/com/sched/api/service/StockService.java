@@ -6,12 +6,12 @@ import com.sched.api.domain.User;
 import com.sched.api.dto.request.StockRequest;
 import com.sched.api.dto.response.StockBatchResponse;
 import com.sched.api.dto.response.StockResponse;
+import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
 import com.sched.api.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,11 +62,11 @@ public class StockService {
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
-            throw new AccessDeniedException("Not authorized to create product, user/company has be deleted");
+            throw new AccessDeniedException();
         }
 
         var product = productRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException("product not found or inactive with id: " + id));
+                .orElseThrow(ResourceNotFoundException::new);
 
         Stock stock = Stock.builder()
                 .quantity(dto.quantity())
@@ -104,14 +104,14 @@ public class StockService {
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
-            throw new AccessDeniedException("Not authorized to product, user/company has be deleted");
+            throw new AccessDeniedException();
         }
 
         Stock stock = stockRepository.findByIdAndProduct_DeletedFalse(stockId)
-                .orElseThrow(() -> new ResourceNotFoundException("stock not found or inactive with id: " + stockId));
+                .orElseThrow(ResourceNotFoundException::new);
 
         if(!Objects.equals(stock.getProduct().getCompany().getId(), company.getId())){
-            throw new AccessDeniedException("Access denied: different company");
+            throw new AccessDeniedException();
         }
 
         return stock;

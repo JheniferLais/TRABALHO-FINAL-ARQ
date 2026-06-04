@@ -31,8 +31,7 @@ public class SaleService {
         User authUser = SecurityUtils.getAuthenticatedUser();
 
         User user = userRepository.findByEmail(authUser.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "user not found or inactive with email: " + authUser.getEmail()));
+                .orElseThrow(ResourceNotFoundException::new);
 
         Long companyId = user.getCompany().getId();
 
@@ -48,12 +47,10 @@ public class SaleService {
         User authUser = SecurityUtils.getAuthenticatedUser();
 
         User user = userRepository.findByEmail(authUser.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "user not found or inactive with email: " + authUser.getEmail()));
+                .orElseThrow(ResourceNotFoundException::new);
 
         Product product = productRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "product not found or inactive with id: " + id));
+                .orElseThrow(ResourceNotFoundException::new);
 
         List<Stock> stocks = stockRepository
                 .findByProductIdAndProduct_DeletedFalseOrderByExpirationDateAsc(product.getId());
@@ -65,7 +62,7 @@ public class SaleService {
                 .sum();
 
         if (totalAvailable < quantityToSell) {
-            throw new InsufficientStockException("Insufficient stock to complete sale.");
+            throw new InsufficientStockException();
         }
 
         for (Stock stock : stocks) {

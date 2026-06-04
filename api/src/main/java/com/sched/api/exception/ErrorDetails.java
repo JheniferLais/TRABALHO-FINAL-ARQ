@@ -7,4 +7,4 @@ public record ErrorDetails(
         int status,
         String error,
         Object message
-) {}
+) { }
