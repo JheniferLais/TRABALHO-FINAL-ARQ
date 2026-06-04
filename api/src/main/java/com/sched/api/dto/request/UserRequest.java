@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record UserRequest(
+
         @NotBlank(message = "Name cannot be empty")
         String name,
 
@@ -13,4 +14,4 @@ public record UserRequest(
 
         @NotBlank(message = "Password cannot be empty")
         String password
-) {}
+) { }

@@ -11,7 +11,6 @@ public record AlertResponse(
         String productName,
         String unitOfMeasure
 ) {
-
     public AlertResponse(Stock stock) {
         this(
                 stock.getId(),

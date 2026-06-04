@@ -11,4 +11,4 @@ public record LoginRequest(
 
         @NotBlank(message = "Password cannot be empty")
         String password
-) {}
+) { }

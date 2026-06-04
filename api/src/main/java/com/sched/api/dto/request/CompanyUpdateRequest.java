@@ -9,5 +9,4 @@ public record CompanyUpdateRequest (
 
     @NotBlank(message = "CNPJ cannot be empty")
     String cnpj
-
-) {}
+) { }

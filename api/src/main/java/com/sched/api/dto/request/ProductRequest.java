@@ -18,4 +18,4 @@ public record ProductRequest(
 
         @NotNull(message = "isPerishable cannot be empty")
         Boolean isPerishable
-) {}
+) { }

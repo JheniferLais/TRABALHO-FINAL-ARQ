@@ -1,6 +1,5 @@
 package com.sched.api.controller;
 
-
 import com.sched.api.dto.response.AlertResponse;
 import com.sched.api.service.AlertService;
 import org.springframework.http.ResponseEntity;

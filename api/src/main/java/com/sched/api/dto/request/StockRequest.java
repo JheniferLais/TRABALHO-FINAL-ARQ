@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 public record StockRequest (
+
     @NotNull(message = "quantity cannot be empty")
     Integer quantity,
 

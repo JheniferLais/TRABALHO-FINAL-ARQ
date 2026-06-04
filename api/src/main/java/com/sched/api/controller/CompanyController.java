@@ -1,6 +1,5 @@
 package com.sched.api.controller;
 
-import com.sched.api.dto.request.CompanyRequest;
 import com.sched.api.dto.request.CompanyUpdateRequest;
 import com.sched.api.dto.response.CompanyResponse;
 import com.sched.api.service.CompanyService;

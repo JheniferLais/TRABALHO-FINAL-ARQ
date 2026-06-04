@@ -17,4 +17,4 @@ public record CompanyRequest(
 
         @NotBlank(message = "Password cannot be empty")
         String passwordADMIN
-) {}
+) { }

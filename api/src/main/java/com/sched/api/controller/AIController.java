@@ -1,11 +1,7 @@
 package com.sched.api.controller;
 
 import java.util.List;
-
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import com.sched.api.domain.User;
 import com.sched.api.dto.response.AIPredictionResponse;
 import com.sched.api.service.AIService;
 

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record AIDemandDataRequest(
+
         Long productId,
 
         @NotBlank(message = "productName cannot be empty")
@@ -23,4 +24,4 @@ public record AIDemandDataRequest(
 
         @NotNull(message = "stockQuantity cannot be empty")
         Long stockQuantity
-) {}
+) { }
