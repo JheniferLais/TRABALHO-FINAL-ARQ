@@ -87,7 +87,12 @@ public class SaleService {
 
         double totalPrice = product.getPrice() * dto.totalSold();
 
-        Sale sale = new Sale(null, dto.totalSold(), totalPrice, null, product, user);
+        Sale sale = Sale.builder()
+                .totalSold(dto.totalSold())
+                .totalPrice(totalPrice)
+                .product(product)
+                .soldBy(user)
+                .build();
 
         return new SaleResponse(saleRepository.save(sale));
     }

@@ -68,7 +68,12 @@ public class StockService {
         var product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("product not found or inactive with id: " + id));
 
-        Stock stock = new Stock(null, dto.quantity(), dto.expirationDate(), null, product,authUser);
+        Stock stock = Stock.builder()
+                .quantity(dto.quantity())
+                .expirationDate(dto.expirationDate())
+                .product(product)
+                .createdBy(authUser)
+                .build();
 
         stock = stockRepository.save(stock);
 
