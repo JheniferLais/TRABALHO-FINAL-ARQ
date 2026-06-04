@@ -23,11 +23,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Verifies that {@link AlertService} dispatches each request to the correct
- * {@link StockAlertRule} strategy. The behaviour of each rule is covered by its
- * own dedicated test ({@code ExpiringStockRuleTest}, {@code LowStockRuleTest}).
- */
 @ExtendWith(MockitoExtension.class)
 class AlertServiceTest {
 
