@@ -1,63 +1,44 @@
 package com.sched.api.service;
 
-import com.sched.api.domain.Stock;
 import com.sched.api.domain.User;
 import com.sched.api.dto.response.AlertResponse;
-import com.sched.api.repository.AlertRepository;
-import com.sched.api.repository.StockRepository;
+import com.sched.api.service.alert.AlertType;
+import com.sched.api.service.alert.StockAlertRule;
 import com.sched.api.utils.SecurityUtils;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Resolves the authenticated company and delegates the actual evaluation to
+ * the matching {@link StockAlertRule} strategy. Spring injects every rule bean,
+ * so adding a new alert kind requires no change here.
+ */
 @Service
-@RequiredArgsConstructor
 public class AlertService {
 
-    private final AlertRepository alertRepository;
-    private final StockRepository stockRepository;
+    private final Map<AlertType, StockAlertRule> rulesByType;
 
-    @Transactional(readOnly = true)
-    public List<AlertResponse> getProductsExpiringInNext30Days() {
-
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime next30Days = now.plusDays(30);
-
-        User authUser = SecurityUtils.getAuthenticatedUser();
-        Long companyId = authUser.getCompany().getId();
-
-        return alertRepository
-                .findByExpirationDateBetweenAndProduct_Company_IdAndProduct_DeletedFalse(
-                        now,
-                        next30Days,
-                        companyId
-                )
-                .stream()
-                .map(AlertResponse::new)
-                .toList();
+    public AlertService(List<StockAlertRule> rules) {
+        this.rulesByType = rules.stream()
+                .collect(Collectors.toMap(StockAlertRule::type, Function.identity()));
     }
 
-    @Transactional(readOnly = true)
-    public List<AlertResponse> getProductsWithLowStock() {
+    public List<AlertResponse> getProductsExpiringInNext30Days() {
+        return evaluate(AlertType.EXPIRING);
+    }
 
+    public List<AlertResponse> getProductsWithLowStock() {
+        return evaluate(AlertType.LOW_STOCK);
+    }
+
+    private List<AlertResponse> evaluate(AlertType type) {
         User authUser = SecurityUtils.getAuthenticatedUser();
         Long companyId = authUser.getCompany().getId();
 
-        List<Stock> allStocks =
-                stockRepository.findByProduct_Company_IdAndProduct_DeletedFalse(companyId);
-
-        return allStocks.stream()
-                .collect(Collectors.groupingBy(stock -> stock.getProduct().getId()))
-                .values()
-                .stream()
-                .filter(stocks -> stocks.stream()
-                        .mapToInt(Stock::getQuantity)
-                        .sum() <= 20)
-                .map(stocks -> new AlertResponse(stocks.get(0)))
-                .toList();
+        return rulesByType.get(type).evaluate(companyId);
     }
 }
