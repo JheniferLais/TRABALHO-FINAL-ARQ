@@ -18,7 +18,7 @@ public interface AIRepository extends JpaRepository<Sale, Long> {
             p.price,
             CAST(SUM(s.totalSold) AS integer),
             CAST(EXTRACT(MONTH FROM MAX(s.saleDate)) AS integer),
-            COALESCE(SUM(st.quantity), 0)
+            CAST(COALESCE(SUM(st.quantity), 0) AS long)
         )
         FROM Sale s
         JOIN s.product p
