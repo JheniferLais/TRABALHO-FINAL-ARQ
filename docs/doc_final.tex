@@ -1,0 +1,701 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage[top=3cm,bottom=2cm,left=3cm,right=2cm]{geometry}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{color}
+
+% Configuração de cores para blocos de código Java
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Java,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+% Configuração de espaçamento e recuo de parágrafo segundo a ABNT
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+
+% Configuração de títulos de seções
+\titleformat{\section}{\normalfont\normalsize\bfseries\uppercase}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\itshape}{\thesubsubsection}{1em}{}
+
+\begin{document}
+
+% --- CAPA ---
+\begin{titlepage}
+    \begin{center}
+        \large\textbf{PONTIFÍCIA UNIVERSIDADE CATÓLICA DE CAMPINAS}\\
+        \large\textbf{FACULDADE DE ENGENHARIA DE SOFTWARE}\\
+        \vspace{3cm}
+        \large\textbf{EDUARDA LUIZA PINHEIRO NEPOMUCENO (24002529)}\\
+        \large\textbf{JEAN YUKI KIMURA (24008214)}\\
+        \large\textbf{JHENIFER LAÍS BARBOSA (24014979)}\\
+        \large\textbf{JOÃO PEDRO DUARTE GIATTI (24019083)}\\
+        \vspace{4cm}
+        \Large\textbf{Sched — Documentação Final de Arquitetura}\\
+        \vspace{1cm}
+        \large\textbf{Disciplina: Padrões e Arquitetura de Software}\\
+        \vfill
+        \large\textbf{CAMPINAS}\\
+        \large\textbf{2026}
+    \end{center}
+\end{titlepage}
+
+% --- SUMÁRIO ---
+\newpage
+\thispagestyle{empty}
+\pdfbookmark[0]{\contentsname}{toc}
+\tableofcontents
+\cleardoublepage
+
+% --- CORPO DO TEXTO ---
+\pagenumbering{arabic}
+
+% --- INTRODUÇÃO ---
+\section{INTRODUÇÃO}
+
+\subsection{Apresentação e justificativa}
+O \textbf{Sched} é uma plataforma de apoio à decisão para minimercados, padarias e pequenos comércios alimentares. Ele controla produtos, estoque (por lotes com validade), vendas e gera previsões de demanda baseadas em Machine Learning, com o objetivo de proteger o fluxo de caixa e reduzir o desperdício de alimentos. O backend já existia (originário do Projeto Integrador V) e foi aqui evoluído e organizado para evidenciar, de forma demonstrável, uma arquitetura justificada, baseada nos princípios SOLID, Clean Code e padrões GoF.
+
+O escopo desta refatoração concentrou-se exclusivamente na pasta \texttt{api/} (backend desenvolvido em Spring Boot). O frontend, a pasta \texttt{ai/} (serviço de IA em Flask) e o banco de dados relacional foram totalmente preservados sem alterações estruturais.
+
+\subsection{Objetivos}
+\begin{itemize}
+    \item \textbf{Geral:} Prover uma API segura, extensível e manutenível para a gestão de estoque e vendas, contendo previsão de demanda integrada e isolamento lógico por empresa.
+    \item \textbf{Específicos:}
+    \begin{itemize}
+        \item Registrar produtos e lotes de estoque associados a datas de validade rígidas;
+        \item Registrar vendas com baixa automática de estoque baseada no algoritmo FIFO (\textit{First-In, First-Out}), garantindo que lotes com vencimento mais próximo saiam primeiro;
+        \item Emitir alertas automatizados de vencimento próximo e de estoque baixo;
+        \item Integrar de forma desacoplada a um serviço externo de Inteligência Artificial para previsão de demanda e recomendação de reposição;
+        \item Garantir o isolamento estrito \textit{multi-tenant}, onde cada empresa visualiza unicamente os seus próprios dados corporativos através de autenticação via tokens JWT.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Problema e público-alvo}
+Pequenos comércios alimentares operam historicamente com margens de lucro apertadas e um alto risco latente de perdas financeiras por vencimento de produtos. Atualmente, faltam ferramentas acessíveis no mercado que cruzem de forma simples os dados de estoque corrente, histórico de vendas e previsão preditiva de demanda. 
+
+O público-alvo deste sistema compreende proprietários e operadores de minimercados ou padarias que necessitam tomar decisões rápidas de compra e reposição. As regras de negócio não são triviais, pois envolvem o gerenciamento de filas FIFO para lotes, isolamento \textit{multi-tenancy} em nível de aplicação, segurança de dados comerciais, regras de alertas extensíveis e integração de rede com serviços externos distribuidos.
+
+% --- ATRIBUTOS DE QUALIDADE ---
+\newpage
+\section{ATRIBUTOS DE QUALIDADE E DECISÕES ARQUITETURAIS}
+
+\subsection{Atributos de qualidade prioritários (ISO/IEC 25010:2023)}
+
+\begin{enumerate}
+    \item \textbf{Manutenibilidade (Modularidade, Testabilidade, Reusabilidade):}
+    \begin{itemize}
+        \item \textit{Justificativa:} Tratando-se de uma equipe de desenvolvimento pequena (4 membros) e de um sistema sob evolução contínua, o custo de engenharia dominante reside na capacidade de alterar o código com segurança e previsibilidade. A adição recorrente de novos tipos de alertas e a necessidade de isolar o serviço externo de IA sem quebrar o núcleo de negócio tornam a manutenibilidade o atributo de maior impacto prático no ciclo de vida do sistema.
+        \item \textit{Decisões arquiteturais:} Adoção de uma arquitetura em camadas combinada a um monolito modular (ADR-001); aplicação do padrão \textit{Strategy} para o motor de alertas (ADR-004); implementação do padrão \textit{Port/Adapter} para isolar o serviço de IA (ADR-005); e a substituição completa de utilitários estáticos pelo componente injetável \texttt{AuthenticatedUserProvider} (ADR-007).
+        \item \textit{Métricas observáveis:} Número de classes alteradas para a adição de um novo modelo de alerta (meta: 1 classe, atingida pelo uso do \textit{Strategy}); cobertura de testes unitários concentrada nas classes de serviço (6 classes de teste estruturadas); monitoramento do acoplamento aferente e eferente por pacotes.
+    \end{itemize}
+
+    \item \textbf{Segurança (Confidencialidade, Integridade, Autenticidade):}
+    \begin{itemize}
+        \item \textit{Justificativa:} O sistema armazena dados comerciais e financeiros altamente sensíveis de múltiplas empresas concorrentes em uma mesma base de dados, tornando o vazamento de informações entre \textit{tenants} inaceitável tanto do ponto de vista legal quanto competitivo.
+        \item \textit{Decisões arquiteturais:} Utilização de arquitetura de segurança baseada em JWT \textit{stateless} e criptografia BCrypt (ADR-002); aplicação de isolamento mandatório por \texttt{company\_id} em todas as consultas SQL e validações de serviço (ADR-003); remoção total do segredo padrão inseguro da aplicação e fechamento de endpoints expostos da IA.
+        \item \textit{Métricas observáveis:} Número de endpoints expostos publicamente (restritos a apenas 3: \texttt{login}, criação de \texttt{company} e especificação aberta); ausência absoluta de segredos textuais em código fonte (\textit{hardcoded}); testes automatizados específicos contra acesso cruzado de dados entre empresas distintas.
+    \end{itemize}
+
+    \item \textbf{Confiabilidade (Maturidade, Tolerância a Falhas, Integridade de Dados):}
+    \begin{itemize}
+        \item \textit{Justificativa:} Falhas na baixa de estoques ou inconsistências de vendas corrompem diretamente o balanço financeiro e o planejamento logístico do comerciante. O algoritmo FIFO, que percorre múltiplos lotes em uma única operação de venda, exige garantias transacionais rígidas para evitar estados inconsistentes no banco de dados.
+        \item \textit{Decisões arquiteturais:} Demarcação de todas as operações de escrita com a anotação \texttt{@Transactional} (garantindo atomicidade entre a baixa FIFO de múltiplos lotes e o registro da venda); implementação de exclusão lógica via \textit{soft delete} para preservação de histórico analítico (ADR-006); validação rígida de saldo suficiente antes da persistência; tratamento centralizado através de um \texttt{GlobalExceptionHandler}; e degradação suave do adaptador de IA (nunca retornando \texttt{null}, mas sim coleções vazias).
+        \item \textit{Métricas observáveis:} Taxa de erros do tipo 5xx monitorados via Spring Boot Actuator; ausência histórica de registros com estoque negativo; consistência transacional validada por testes de estresse.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Registro de Decisões Arquiteturais (ADRs)}
+
+As decisões arquiteturais críticas foram registradas no formato canônico (NYGARD, 2011) e versionadas na pasta \texttt{/docs/adrs} do repositório. Os sete ADRs são apresentados na íntegra a seguir.
+
+% ADR-001
+\subsubsection{ADR-001 --- Monolito modular organizado em camadas}
+
+\noindent\textbf{Status:} Aceito
+
+\noindent\textbf{Contexto:}
+O Sched é mantido por uma equipe pequena (4 pessoas) e tem um domínio altamente coeso — produtos, estoque, vendas, alertas e previsão de demanda — de uma mesma empresa. Não há requisito de escala independente por subsistema nem times separados que justifiquem fronteiras de implantação distintas. Precisamos de uma arquitetura que favoreça manutenibilidade e velocidade de evolução sem custo operacional elevado.
+
+\noindent\textbf{Decisão:}
+Adotar um monolito modular com arquitetura em camadas: \texttt{controller~$\rightarrow$~service~$\rightarrow$~repository~$\rightarrow$~domain}, complementada pelos pacotes \texttt{dto}, \texttt{exception}, \texttt{security} e \texttt{client}. Cada camada conhece apenas a camada imediatamente inferior; entidades JPA não cruzam a fronteira do controller (são convertidas em DTOs do tipo \texttt{record}). A borda de integração externa (IA) usa o padrão porta/adaptador.
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] Baixa complexidade operacional: um único artefato implantável.
+    \item[+] Limites de responsabilidade claros e testáveis por camada.
+    \item[+] Refatoração interna barata, sem contratos de rede entre módulos.
+    \item[--] Escala apenas de forma vertical ou horizontal do monolito inteiro; subsistemas não escalam de forma independente. Aceitável para o volume atual.
+    \item[--] Microsserviços foram explicitamente descartados por representarem \textit{overengineering} frente ao tamanho do time e à coesão do domínio.
+\end{itemize}
+
+% ADR-002
+\subsubsection{ADR-002 --- Autenticação stateless via JWT}
+
+\noindent\textbf{Status:} Aceito
+
+\noindent\textbf{Contexto:}
+O frontend é uma aplicação web separada que consome a API por HTTP. Não há estado de sessão a manter no servidor, e o sistema deve permitir escalabilidade horizontal sem necessidade de replicação de sessão entre instâncias.
+
+\noindent\textbf{Decisão:}
+Usar autenticação \textit{stateless} com JWT (\textit{Bearer}). O \texttt{TokenService} (biblioteca \texttt{java-jwt}) emite tokens assinados com HMAC256 no login; o \texttt{SecurityFilter} (\texttt{OncePerRequestFilter}) valida o token a cada requisição e popula o \texttt{SecurityContext}. O Spring Security é configurado com \texttt{SessionCreationPolicy.STATELESS}, CSRF desabilitado e senhas em BCrypt. O segredo e a expiração são externalizados por variáveis de ambiente; não há segredo padrão — a ausência do segredo provoca falha na inicialização (\textit{fail-fast}). Esta decisão foi reforçada na refatoração de 2026 com a remoção do fallback inseguro (\texttt{my-secret}).
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] Sem estado de sessão; qualquer instância valida qualquer token.
+    \item[+] Segredo externalizado e expiração configurável por ambiente.
+    \item[--] Revogação de token antes da expiração exige mecanismo adicional (\textit{blocklist}), ainda não implementado — registrado como dívida técnica.
+\end{itemize}
+
+% ADR-003
+\subsubsection{ADR-003 --- Isolamento multi-tenant por \texttt{company\_id}}
+
+\noindent\textbf{Status:} Aceito
+
+\noindent\textbf{Contexto:}
+Cada empresa cadastrada deve enxergar apenas seus próprios produtos, estoques, vendas e usuários. Vazamento de dados entre empresas é um risco de segurança e de confiabilidade inaceitável, tanto pelo aspecto legal quanto pelo competitivo.
+
+\noindent\textbf{Decisão:}
+Adotar \textit{multi-tenancy} lógico por discriminador (\texttt{company\_id}). O usuário autenticado carrega sua \texttt{Company}; todas as consultas de leitura filtram por \texttt{product.company.id} ou \texttt{company.id} (ex.: \texttt{findByProduct\_Company\_IdAndProduct\_DeletedFalse}), e as operações de escrita validam, na camada de serviço, se o recurso pertence à empresa do usuário, lançando \texttt{AccessDeniedException} em caso de violação.
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] Isolamento de dados garantido nas camadas de aplicação e de consulta.
+    \item[+] Modelo simples, sem custo de bancos ou schemas separados por tenant.
+    \item[--] A correção do isolamento depende de disciplina na escrita dos services; mitigado por testes unitários que cobrem cenários de acesso cruzado entre empresas.
+    \item[--] Não há isolamento físico; um bug de query poderia vazar dados — por isso os filtros por empresa são padronizados nos nomes de método dos repositórios.
+\end{itemize}
+
+% ADR-004
+\subsubsection{ADR-004 --- Strategy + Registry para regras de alerta}
+
+\noindent\textbf{Status:} Aceito
+
+\noindent\textbf{Contexto:}
+O sistema gera alertas de estoque de naturezas diferentes (vencimento próximo, estoque baixo), com tendência de surgirem novos tipos (ruptura, excesso). Um bloco \texttt{if/else} ou \texttt{switch} por tipo no \texttt{AlertService} violaria o princípio Aberto-Fechado e tornaria a adição de novos alertas um risco de regressão.
+
+\noindent\textbf{Decisão:}
+Modelar cada regra como uma \textit{Strategy} implementando a interface \texttt{StockAlertRule} (métodos \texttt{type()} e \texttt{evaluate(companyId)}). O \texttt{AlertService} recebe por injeção a \texttt{List<StockAlertRule>} e monta um \textit{Registry} (\texttt{Map<AlertType, StockAlertRule>}) indexado por \texttt{type()}. A seleção da regra é uma simples busca no mapa, sem condicionais.
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] Adicionar um novo tipo de alerta requer apenas a criação de uma nova classe \texttt{@Component} que implementa \texttt{StockAlertRule}; o \texttt{AlertService} não é modificado (OCP).
+    \item[+] Cada regra é testável de forma completamente isolada.
+    \item[--] Mais classes pequenas no projeto — custo desprezível frente ao ganho de extensibilidade.
+\end{itemize}
+
+% ADR-005
+\subsubsection{ADR-005 --- Port/Adapter para o serviço de IA (anticorrupção)}
+
+\noindent\textbf{Status:} Aceito
+
+\noindent\textbf{Contexto:}
+A previsão de demanda é fornecida por um serviço Python/Flask externo (pasta \texttt{ai/}), que não pode ser alterado nesta iteração e pode ser substituído no futuro por outro provedor. O backend não deve acoplar suas regras de negócio ao protocolo HTTP nem ao formato de contrato específico desse serviço.
+
+\noindent\textbf{Decisão:}
+Definir uma porta \texttt{DemandForecastPort} (interface) no pacote \texttt{client} e um adaptador \texttt{FlaskDemandForecastClient} que implementa a porta por meio de \texttt{RestTemplate}. O \texttt{AIService} depende exclusivamente da porta (Inversão de Dependência); a URL do serviço é externalizada por \texttt{@Value} com padrão local configurável.
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] A substituição do provedor de IA requer apenas uma nova implementação da porta, sem nenhuma alteração no domínio.
+    \item[+] Testes do \texttt{AIService} utilizam mock da porta, sem necessidade de rede.
+    \item[+] A camada anticorrupção isola completamente o backend do contrato específico do Flask.
+    \item[--] Uma indireção adicional no código; justificada pela fronteira de integração externa.
+\end{itemize}
+
+% ADR-006
+\subsubsection{ADR-006 --- Exclusão lógica (soft delete)}
+
+\noindent\textbf{Status:} Aceito
+
+\noindent\textbf{Contexto:}
+Produtos, usuários e empresas podem ser ``removidos'' da operação ativa, mas registros históricos — vendas e lotes de estoque — referenciam essas entidades. A exclusão física quebraria a integridade referencial e eliminaria o histórico necessário para relatórios analíticos e para o treinamento do modelo de previsão de demanda.
+
+\noindent\textbf{Decisão:}
+Adotar \textit{soft delete} com a flag booleana \texttt{deleted}. As consultas utilizam variações \texttt{...AndDeletedFalse}; a ``remoção'' apenas marca \texttt{deleted = true}. Regras de negócio protegem operações inválidas: a \texttt{ProductHasStockException} impede a exclusão de um produto com lotes de estoque ainda ativos.
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] Histórico preservado e integridade referencial mantida.
+    \item[+] Possibilidade de auditoria e de reativação de registros.
+    \item[--] Todas as queries precisam filtrar \texttt{deleted = false}, com risco de esquecimento; mitigado por nomes de método padronizados nos repositórios Spring Data JPA.
+    \item[--] Volume de dados cresce sem mecanismo de expurgo automático; aceitável no volume atual de pequenos comércios.
+\end{itemize}
+
+% ADR-007
+\subsubsection{ADR-007 --- Provedor de usuário autenticado injetável (DIP)}
+
+\noindent\textbf{Status:} Aceito (refatoração 2026)
+
+\noindent\textbf{Contexto:}
+O acesso ao usuário autenticado era realizado por um utilitário estático (\texttt{SecurityUtils.getAuthenticatedUser()}) chamado diretamente em todos os services. Isso acoplava cada service ao \texttt{SecurityContextHolder} do Spring Security, exigia mock estático nos testes (\texttt{mockStatic}) e violava o princípio da Inversão de Dependência, pois os módulos de alto nível dependiam de um detalhe de implementação concreto e estático.
+
+\noindent\textbf{Decisão:}
+Substituir o utilitário estático por um colaborador injetável \texttt{Authenticated\-UserProvider} (\texttt{@Component}) com o método \texttt{getCurrentUser()}. Os services passam a recebê-lo por injeção de construtor (via \texttt{@RequiredArgsConstructor}) e dependem dessa abstração. O \texttt{SecurityUtils} foi removido completamente da base de código.
+
+\noindent\textbf{Consequências:}
+\begin{itemize}
+    \item[+] Services desacoplados do acesso estático ao contexto de segurança (DIP aplicado).
+    \item[+] Testes utilizam mock simples da interface (\texttt{@Mock}), sem necessidade de \texttt{mockStatic}.
+    \item[+] Ponto único para evoluir a resolução do usuário (ex.: cache, leitura de claims adicionais).
+    \item[--] Uma dependência adicional no construtor de cada service; custo trivial.
+    \item[] A lógica de negócio (verificação de \texttt{deleted}, validação de posse por empresa) foi preservada nos services para manter o comportamento e a suíte de testes existente. Este ADR registra uma \textbf{decisão modificada}: a abordagem estática anterior foi substituída pela injetável após identificação do impacto negativo na testabilidade.
+\end{itemize}
+
+% --- ESTILO ARQUITETURAL ---
+\newpage
+\section{ESTILO ARQUITETURAL}
+
+\subsection{Plano macro — decomposição em unidades implantáveis}
+O sistema adota o estilo de \textbf{monolito modular}, sendo compilado em um único artefato Spring Boot executável. Essa abordagem é justificada na ADR-001: as dimensões reduzidas da equipe, o domínio altamente coeso do sistema e a ausência inicial de requisitos de escalabilidade independente eliminam a necessidade de adoção de microsserviços, que adicionariam custos operacionais sem retorno financeiro imediato. A única fronteira distribuída da aplicação consiste no serviço externo de IA (Flask), o qual é consumido por meio do padrão \textit{Port/Adapter} acoplado a protocolos HTTP/JSON, isolando o núcleo do negócio de mudanças de provedores tecnológicos.
+
+\subsection{Plano interno — organização do código}
+A estrutura interna baseia-se em uma \textbf{arquitetura em camadas} tradicional com forte isolamento e contornos hexagonais em suas fronteiras de comunicação externa:
+
+\begin{itemize}
+    \item \textbf{controller:} Responsável pela adaptação do protocolo HTTP de entrada (\texttt{AuthController}, \texttt{ProductController}).
+    \item \textbf{service:} Concentrador exclusivo das regras de negócio do domínio (\texttt{ProductService}, \texttt{SaleService}, \texttt{AlertService}).
+    \item \textbf{repository:} Camada de acesso e persistência de dados gerenciada pelo Spring Data JPA (\texttt{ProductRepository}, \texttt{StockRepository}).
+    \item \textbf{domain:} Modelagem de entidades ricas do sistema (\texttt{Company}, \texttt{User}, \texttt{Product}, \texttt{Stock}, \texttt{Sale}).
+    \item \textbf{dto:} Estruturas de dados imutáveis (\textit{records}) para contratos de entrada e saída.
+    \item \textbf{security:} Mecanismos de criptografia, filtros de requisição de rede JWT e contexto (\texttt{SecurityConfig}, \texttt{AuthenticatedUserProvider}).
+    \item \textbf{client:} Implementação da porta e adaptadores do ecossistema de Inteligência Artificial (\texttt{DemandForecastPort}, \texttt{FlaskDemandForecastClient}).
+    \item \textbf{exception:} Centralização de erros e manipuladores globais (\texttt{GlobalExceptionHandler}).
+\end{itemize}
+
+% --- APLICAÇÃO DOS PRINCÍPIOS SOLID ---
+\newpage
+\section{APLICAÇÃO DOS PRINCÍPIOS SOLID}
+
+\subsection{SRP — Single Responsibility Principle}
+Cada classe possui apenas uma única razão para ser alterada. O componente \texttt{AlertService}, por exemplo, atua exclusivamente selecionando e delegando tarefas; a responsabilidade de saber \textit{como} processar e calcular cada alerta específico pertence unicamente às regras correspondentes injetadas.
+
+\begin{lstlisting}
+@Service
+public class AlertService {
+    private final Map<AlertType, StockAlertRule> rulesByType;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
+
+    private List<AlertResponse> evaluate(AlertType type) {
+        User authUser = authenticatedUserProvider.getCurrentUser();
+        Long companyId = authUser.getCompany().getId();
+        return rulesByType.get(type).evaluate(companyId);
+    }
+}
+\end{lstlisting}
+
+\subsection{OCP — Open/Closed Principle}
+A inclusão de novos tipos ou formatos de alertas no sistema \textbf{não exige nenhuma modificação} interna no código-fonte do componente \texttt{AlertService}. O sistema encontra-se aberto para extensão e fechado para modificação.
+
+\begin{lstlisting}
+public interface StockAlertRule {
+    AlertType type();
+    List<AlertResponse> evaluate(Long companyId);
+}
+
+@Component
+public class LowStockRule implements StockAlertRule {
+    public AlertType type() { return AlertType.LOW_STOCK; }
+    public List<AlertResponse> evaluate(Long companyId) { /* ... */ }
+}
+\end{lstlisting}
+
+\subsection{LSP — Liskov Substitution Principle}
+Qualquer classe que implemente a interface \texttt{DemandForecastPort} pode substituir o adaptador de produção sem causar quebras estruturais ou comportamentais indesejadas ao \texttt{AIService}, dado que o contrato estabelecido assegura que coleções nulas nunca serão retornadas (degradando estritamente para listas vazias).
+
+\begin{lstlisting}
+@Override
+public List<AIPredictionResponse> forecast(List<AIDemandDataRequest> demandData) {
+    AIPredictionResponse[] response = restTemplate.postForObject(forecastUrl, demandData, AIPredictionResponse[].class);
+    return response == null ? List.of() : List.of(response); 
+}
+\end{lstlisting}
+
+\subsection{ISP — Interface Segregation Principle}
+As interfaces expostas pelo sistema são altamente específicas e enxutas. A interface \texttt{StockAlertRule} declara unicamente os métodos \texttt{type()} e \texttt{evaluate()}, enquanto \texttt{DemandForecastPort} declara estritamente o método \texttt{forecast()}. Nenhum cliente do sistema é induzido a depender de métodos abstratos que não utiliza, simplificando a criação de dublês de testes (\textit{mocks}).
+
+\subsection{DIP — Dependency Inversion Principle}
+Os módulos de alto nível não se acoplam a detalhes de baixo nível, mas dependem estritamente de abstrações. O \texttt{AIService} consome a porta aberta de previsão de demanda em vez do cliente HTTP direto (\texttt{RestTemplate}). Complementarmente, os serviços de negócio agora dependem da interface injetável \texttt{AuthenticatedUserProvider}, eliminando o acoplamento estático anterior ao contexto global do Spring Security.
+
+% --- CLEAN CODE ---
+\newpage
+\section{CLEAN CODE}
+
+Diversas práticas de legibilidade e engenharia de software limpa foram introduzidas durante a refatoração do código-fonte do sistema:
+\begin{itemize}
+    \item \textbf{Nomes claros e expressivos:} O método \texttt{getProductStockSummary()} substituiu o antigo termo genérico e semanticamente incorreto \texttt{findById()} exposto no \texttt{StockController}. Adicionalmente, a constante expressiva \texttt{Stock.NO\_EXPIRATION} substituiu o uso disseminado de números mágicos temporais (ex: \texttt{LocalDateTime.of(1970,1,1,0,0)}).
+    \item \textbf{Funções pequenas e coesas:} Métodos de serviços foram refatorados para manter baixa complexidade ciclomática, extraindo conversões de dados para subfunções isoladas de mapeamento como \texttt{mapToResponse()} e \texttt{mapToBatchResponse()}.
+    \item \textbf{Remoção de duplicidade:} Exclusão de consultas SQL redundantes em base de dados, como chamadas repetidas a \texttt{userRepository.findByEmail()} no interior do componente \texttt{SaleService}, visto que o principal já trafegava a entidade de usuário autenticada.
+    \item \textbf{Tratamento explícito de erros:} Exceções de negócio customizadas (\texttt{InsufficientStockException}, \texttt{ProductHasStockException}, \texttt{ResourceNotFoundException}) passaram a ser interceptadas de forma centralizada pelo \texttt{GlobalExceptionHandler}, que agora formata respostas HTTP estruturadas devolvendo erros do tipo 400 (\textit{Bad Request}) mapeando chaves e mensagens detalhadas de validações falhas do componente \texttt{@Valid}.
+    \item \textbf{Testabilidade:} Criação de 6 classes de testes unitários utilizando JUnit 5 e Mockito, cobrindo de maneira isolada regras críticas como a ordem de escoamento FIFO de lotes, validações \textit{multi-tenant}, lógica dos alertas de estoque e operações de CRUD padrão.
+\end{itemize}
+
+% --- PADRÕES DE PROJETO GOF ---
+\newpage
+\section{PADRÕES DE PROJETO GOF}
+
+\subsection{Strategy (Comportamental)}
+\begin{itemize}
+    \item \textbf{Problema:} Evitar que a introdução de novas lógicas de alerta gere estruturas condicionais complexas (\texttt{if-else} ou \texttt{switch}), violando o princípio OCP.
+    \item \textbf{Solução:} Criação de uma interface comum (\textit{Strategy}) implementada de forma independente por cada regra de negócio, gerenciada por um mapa indexador (\textit{Registry}).
+\end{itemize}
+
+\begin{lstlisting}
+// ESTRATEGIA: Interface comum para as regras de alerta
+public interface StockAlertRule {
+    AlertType type();
+    List<AlertResponse> evaluate(Long companyId);
+}
+// CONCRETIZACAO 1: Regra para Produtos Vencendo
+@Component
+public class ExpiringStockRule implements StockAlertRule {
+    @Override
+    public AlertType type() { return AlertType.EXPIRING; }
+    
+    @Override
+    public List<AlertResponse> evaluate(Long companyId) {// ...retorna os produtos proximos de vencer}
+}
+// CONCRETIZACAO 2: Regra para Estoque Baixo
+@Component
+public class LowStockRule implements StockAlertRule {
+    @Override
+    public AlertType type() { return AlertType.LOW_STOCK; }
+    
+    @Override
+    public List<AlertResponse> evaluate(Long companyId) {// ...retorna os produtos com baixo estoque}
+}
+// CONTEXTO: Centraliza e delega a execucao dinamicamente através do Registry
+@Service
+public class AlertService {
+    private final Map<AlertType, StockAlertRule> rulesByType;
+
+    public AlertService(List<StockAlertRule> rules) {
+        this.rulesByType = rules.stream().collect(Collectors.toMap(StockAlertRule::type, Function.identity()));
+    }
+
+    private List<AlertResponse> evaluate(AlertType type, Long companyId) {
+        return rulesByType.get(type).evaluate(companyId);
+    }
+}
+\end{lstlisting}
+
+\begin{itemize}
+    \item \textbf{Benefício:} O \texttt{AlertService} torna-se totalmente extensível. A inclusão de um novo tipo de alerta exige apenas a criação de uma nova classe que implemente \texttt{StockAlertRule}, sem necessidade de modificar nenhuma linha de código do serviço central.
+\end{itemize}
+
+\subsection{Adapter (Estrutural)}
+\begin{itemize}
+    \item \textbf{Problema:} Evitar que o núcleo de negócios e o serviço de domínio da aplicação fossem expostos ou rigidamente amarrados às particularidades de infraestrutura, tais como o protocolo de comunicação HTTP, uso do \texttt{RestTemplate}, strings de URLs e chaves JSON do microsserviço externo em Flask.
+    \item \textbf{Solução:} Aplicação do padrão \textit{Adapter} em conformidade com as diretrizes de uma arquitetura hexagonal. Foi estabelecida uma interface abstrata de domínio que atua como uma porta de saída (\textit{Port}). Em seguida, implementou-se um componente de infraestrutura (\textit{Adapter}) responsável por interceptar as regras de negócio, realizar o mapeamento físico da requisição de rede HTTP via \texttt{RestTemplate} e consumir a Inteligência Artificial externa de forma totalmente transparente para o núcleo do sistema, conforme ilustrado abaixo:
+\end{itemize}
+
+\begin{lstlisting}
+// A PORTA: Abstracao de dominio independente de infraestrutura
+public interface DemandForecastPort {
+    List<AIPredictionResponse> forecast(List<AIDemandDataRequest> demandData);
+}
+// O ADAPTADOR: Encapsula as chamadas de rede HTTP e o RestTemplate
+public class FlaskDemandForecastClient implements DemandForecastPort {
+    @Override
+    public List<AIPredictionResponse> forecast(List<AIDemandDataRequest> demandData) {
+        ...
+    }
+}
+// O CLIENTE DO PADRAO: Servico de Dominio acoplado apenas a Porta
+public class AIService {
+    private final DemandForecastPort demandForecastPort;
+
+    public List<AIPredictionResponse> getPredictions() {
+        return demandForecastPort.forecast(getDemandData());
+    }
+}
+\end{lstlisting}
+
+\begin{itemize}
+    \item \textbf{Benefícios:} Atua como uma robusta camada anticorrupção (\textit{Anticorruption Layer}). Caso o microsserviço em Flask seja substituído por um provedor em nuvem, por filas de mensageria ou por outra biblioteca de aprendizado profundo, o componente \texttt{AIService} permanecerá intacto. Além disso, a testabilidade é drasticamente otimizada, permitindo simular falhas e comportamentos da inteligência artificial por meio do isolamento de mocks da interface de modo trivial.
+\end{itemize}
+
+\subsection{Builder (Criacional)}
+\begin{itemize}
+    \item \textbf{Problema:} A instanciação manual de entidades de domínio complexas contendo múltiplos atributos tornava os construtores ilegíveis e propensos a falhas de posicionamento de parâmetros.
+    \item \textbf{Solução:} Acoplamento da anotação \texttt{@Builder} (Lombok) sobre as classes de entidade.
+    \item \textbf{Benefícios:} Escrita fluente, legível e garantia de imutabilidade parcial durante as etapas de construção de dados nos serviços.
+    \item \textbf{Exemplo de uso:}
+\end{itemize}
+
+\begin{lstlisting}
+Stock stock = Stock.builder()
+        .quantity(dto.quantity())
+        .expirationDate(dto.expirationDate())
+        .product(product)
+        .createdBy(authUser)
+        .build();
+\end{lstlisting}
+
+% --- DESIGN DE API ---
+\newpage
+\section{DESIGN DE API}
+
+\subsection{Estilo e justificativa}
+
+A API do Sched adota o estilo \textbf{REST} sobre HTTP/1.1, trafegando exclusivamente JSON (\texttt{Content-Type: application/json}). A escolha justifica-se pela simplicidade de integração com o frontend web existente, pela maturidade do ecossistema Spring MVC para REST e pela natureza predominantemente CRUD do domínio. A especificação formal está no arquivo \texttt{docs/openapi.yaml} do repositório, no padrão \textbf{OpenAPI 3.0.3}.
+
+\subsection{Autenticação}
+
+Todas as rotas — exceto \texttt{POST /auth/company}, \texttt{POST /auth/login} e a própria especificação OpenAPI — exigem o header:
+
+\begin{center}
+\texttt{Authorization: Bearer <token>}
+\end{center}
+
+O token JWT é obtido em \texttt{POST /auth/login} e assinado com HMAC256. Em caso de token ausente ou malformado a API retorna \textbf{401 Unauthorized}; em caso de token válido mas sem permissão para o recurso (ex.: usuário comum acessando rota de ADMIN ou dados de outra empresa), retorna \textbf{403 Forbidden}. Ambas as respostas seguem o schema \texttt{ErrorDetails}.
+
+\subsection{Versionamento}
+
+A versão corrente é a \textbf{v1}, implícita na raiz (\texttt{/}). A estratégia adotada é \textbf{versionamento por caminho de URL}: quando uma mudança incompatível for necessária, o prefixo \texttt{/api/v2/...} será introduzido, mantendo \texttt{/api/v1/...} ativo durante o período de transição. Até lá, a API evolui de forma retrocompatível, adicionando campos opcionais sem remover ou renomear os existentes.
+
+\subsection{Convenções de erro e paginação}
+
+Todos os erros retornam o schema \texttt{ErrorDetails}, definido como:
+
+\begin{center}
+\texttt{\{ timestamp, status: integer, error: string, message: string | object \}}
+\end{center}
+
+Em erros de validação de campos (\texttt{@Valid}), o campo \texttt{message} é um objeto chave$\rightarrow$valor mapeando cada campo inválido à sua mensagem. Os códigos utilizados são:
+
+\begin{itemize}
+    \item \textbf{400 Bad Request} — corpo inválido, campo faltante ou estoque insuficiente para a venda.
+    \item \textbf{401 Unauthorized} — credenciais inválidas no login ou token ausente/expirado.
+    \item \textbf{403 Forbidden} — token válido, mas sem permissão (papel insuficiente ou recurso de outra empresa).
+    \item \textbf{404 Not Found} — recurso inexistente ou pertencente a outra empresa (isolamento multi-tenant).
+    \item \textbf{409 Conflict} — violação de unicidade (ex.: CNPJ ou e-mail já cadastrado).
+\end{itemize}
+
+As listagens retornam o conjunto completo filtrado pela empresa do usuário autenticado. A paginação via \texttt{Pageable} do Spring Data está prevista como evolução obrigatória para \texttt{GET /stock} e \texttt{GET /sale}, registrada como dívida técnica.
+
+\subsection{Endpoints}
+
+A Tabela~\ref{tab:endpoints} apresenta todos os endpoints da API, organizados por grupo funcional.
+
+\begin{table}[H]
+\centering
+\caption{Endpoints da API Sched (OpenAPI 3.0.3).}
+\label{tab:endpoints}
+\vspace{0.2cm}
+\small
+\begin{tabular}{llp{5.2cm}l}
+\toprule
+\textbf{Método} & \textbf{Rota} & \textbf{Descrição} & \textbf{Auth} \\
+\midrule
+\multicolumn{4}{l}{\textit{Auth}} \\
+POST & \texttt{/auth/company} & Registra nova empresa e usuário ADMIN & Não \\
+POST & \texttt{/auth/login}   & Autentica e retorna token JWT & Não \\
+POST & \texttt{/auth/user}    & Cria usuário na empresa do ADMIN & ADMIN \\
+\midrule
+\multicolumn{4}{l}{\textit{Usuário}} \\
+GET  & \texttt{/user/me}      & Retorna o usuário autenticado & Sim \\
+GET  & \texttt{/user}         & Lista usuários da empresa & ADMIN \\
+GET  & \texttt{/user/\{id\}}  & Busca usuário por id & ADMIN \\
+PUT  & \texttt{/user/\{id\}}  & Atualiza usuário & Sim \\
+DELETE & \texttt{/user/\{id\}} & Exclusão lógica & ADMIN \\
+\midrule
+\multicolumn{4}{l}{\textit{Empresa}} \\
+GET  & \texttt{/company}       & Lista empresas ativas & ADMIN \\
+GET  & \texttt{/company/\{id\}} & Busca empresa por id & ADMIN \\
+PUT  & \texttt{/company/\{id\}} & Atualiza empresa & ADMIN \\
+DELETE & \texttt{/company/\{id\}} & Exclusão lógica & ADMIN \\
+\midrule
+\multicolumn{4}{l}{\textit{Produto}} \\
+GET  & \texttt{/product}       & Lista produtos ativos da empresa & Sim \\
+POST & \texttt{/product}       & Cria produto & Sim \\
+GET  & \texttt{/product/\{id\}} & Busca produto por id & Sim \\
+PUT  & \texttt{/product/\{id\}} & Atualiza produto & Sim \\
+DELETE & \texttt{/product/\{id\}} & Exclusão lógica (falha se há estoque ativo) & Sim \\
+\midrule
+\multicolumn{4}{l}{\textit{Estoque}} \\
+GET  & \texttt{/stock}               & Lista todos os lotes da empresa & Sim \\
+GET  & \texttt{/stock/filterProduct} & Resumo agregado por produto & Sim \\
+POST & \texttt{/stock/\{id\}}        & Cria lote para o produto \texttt{id} & Sim \\
+PUT  & \texttt{/stock/\{id\}}        & Atualiza lote de estoque & Sim \\
+DELETE & \texttt{/stock/\{id\}}      & Remove lote de estoque & Sim \\
+\midrule
+\multicolumn{4}{l}{\textit{Venda}} \\
+GET  & \texttt{/sale}         & Lista vendas da empresa & Sim \\
+POST & \texttt{/sale/\{id\}}  & Registra venda do produto \texttt{id} (baixa FIFO) & Sim \\
+\midrule
+\multicolumn{4}{l}{\textit{Alertas}} \\
+GET  & \texttt{/alert/expiring}   & Produtos que vencem nos próximos 30 dias & Sim \\
+GET  & \texttt{/alert/low-stock}  & Produtos com estoque baixo & Sim \\
+\midrule
+\multicolumn{4}{l}{\textit{IA}} \\
+GET  & \texttt{/ai/predictions} & Previsão de demanda por produto & Sim \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Schemas principais}
+
+Os schemas de entrada e saída estão formalmente definidos no \texttt{openapi.yaml}. Os mais relevantes são descritos a seguir.
+
+\textbf{LoginRequest / LoginResponse:} O login recebe \texttt{\{email, password\}} e retorna \texttt{\{token: string\}}, que deve ser enviado como \texttt{Bearer} em todas as chamadas subsequentes.
+
+\textbf{SaleRequest:} Recebe apenas \texttt{\{totalSold: integer\}}. O serviço resolve internamente a baixa FIFO nos lotes, consumindo primeiramente os de vencimento mais próximo. Retorna \texttt{SaleResponse} com \texttt{totalPrice}, \texttt{totalSold}, \texttt{soldBy} e \texttt{saleDate}.
+
+\textbf{StockResponse:} Consolida por produto os campos \texttt{availableQuantity}, \texttt{nextToExpireDate} e \texttt{latestExpirationDate}, permitindo ao frontend exibir o panorama de estoque sem chamadas adicionais.
+
+\textbf{AIPredictionResponse:} Retorna por produto as previsões de demanda para 7, 15 e 30 dias (\texttt{prediction7Days}, \texttt{prediction15Days}, \texttt{prediction30Days}), a quantidade recomendada de reposição (\texttt{recommendedRestock}), um campo de alerta textual e os metadados do modelo utilizado (\texttt{modelUsed}, \texttt{modelMAE}).
+
+\textbf{ErrorDetails:} Schema unificado para todos os erros, com \texttt{timestamp}, \texttt{status}, \texttt{error} e \texttt{message}. Em validações de campo, \texttt{message} é um objeto \texttt{\{campo: mensagem\}}; nos demais erros, é uma string descritiva.
+
+% --- DIAGRAMAS E MODELOS ---
+\newpage
+\section{DIAGRAMAS E MODELOS}
+
+\subsection{Arquitetura geral do sistema}
+
+A Figura~\ref{fig:arq-geral} apresenta a visão de componentes do sistema Sched no estilo C4 (nível de contêiner). O monolito Spring Boot organiza-se internamente em camadas (\texttt{controller}, \texttt{service}, \texttt{repository}, \texttt{domain}), com o pacote \texttt{security} interceptando todas as requisições antes de chegarem ao \texttt{controller}. O pacote \texttt{exception} (\texttt{GlobalExceptionHandler}) trata os erros em camada transversal. A única fronteira distribuída é o serviço de IA em Flask, consumido pelo adaptador \texttt{FlaskDemandForecastClient} via \texttt{DemandForecastPort}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{01-arquitetura-geral.png}
+    \caption{Arquitetura geral do sistema Sched — visão de componentes (estilo C4).}
+    \label{fig:arq-geral}
+\end{figure}
+
+\subsection{Diagramas de classes dos padrões GoF}
+
+\subsubsection{Padrão Strategy — motor de alertas}
+
+A Figura~\ref{fig:cls-strategy} ilustra a aplicação do padrão Strategy. O \texttt{AlertService} agrega uma coleção de \texttt{StockAlertRule} por meio de um Registry (\texttt{Map<AlertType, StockAlertRule>}), selecionando a regra correta sem condicionais. As implementações \texttt{LowStockRule} e \texttt{ExpiringStockRule} são componentes independentes e substituíveis. O enum \texttt{AlertType} serve como chave de indexação do mapa.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{02-diagrama-de-classe_STRATEGY_.png}
+    \caption{Diagrama de classes — padrão Strategy aplicado ao motor de alertas.}
+    \label{fig:cls-strategy}
+\end{figure}
+
+\subsubsection{Padrão Adapter — integração com o serviço de IA}
+
+A Figura~\ref{fig:cls-adapter} ilustra o padrão Adapter (Port/Adapter). O \texttt{AIService} depende exclusivamente da interface \texttt{DemandForecastPort} (porta). O \texttt{FlaskDemandForecastClient} implementa essa porta encapsulando o \texttt{RestTemplate} e a URL do serviço Flask, funcionando como camada anticorrupção entre o domínio e a infraestrutura de rede.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{02-diagrama-de-classe_ADAPTER_.png}
+    \caption{Diagrama de classes — padrão Adapter aplicado à integração com o serviço de IA.}
+    \label{fig:cls-adapter}
+\end{figure}
+
+\subsubsection{Padrão Builder — construção de entidades de domínio}
+
+A Figura~\ref{fig:cls-builder} ilustra o padrão Builder gerado pela anotação \texttt{@Builder} do Lombok. O \texttt{ProductService} utiliza o \texttt{ProductBuilder} para construir instâncias de \texttt{Product} de forma fluente, evitando construtores com múltiplos parâmetros posicionais e tornando o código de criação de entidades legível e resistente a erros de ordem de argumento.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{02-diagrama-de-classe_BUILDER_.png}
+    \caption{Diagrama de classes — padrão Builder aplicado à construção da entidade \texttt{Product}.}
+    \label{fig:cls-builder}
+\end{figure}
+
+\subsection{Diagrama de sequência — previsão de demanda por IA}
+
+A Figura~\ref{fig:seq-ia} detalha o fluxo central de previsão de demanda (\texttt{GET /ai/predictions}). O frontend envia a requisição com token JWT; o \texttt{SecurityFilter} valida o token antes de o \texttt{AIController} ser acionado. O \texttt{AIService} obtém o usuário autenticado via \texttt{AuthenticatedUserProvider} (passo~3--4), consulta os dados históricos no \texttt{AIRepository} (passo~5--6), delega a previsão à porta \texttt{DemandForecastPort} (passo~7), que é implementada pelo \texttt{FlaskDemandForecastClient} fazendo um \texttt{HTTP POST /predict} ao serviço Flask (passos~8--10). A resposta percorre o caminho inverso até retornar \texttt{200 OK} com a lista de previsões ao frontend (passos~11--13).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{03-sequencia-previsao-ia.png}
+    \caption{Diagrama de sequência — fluxo de previsão de demanda (\texttt{GET /ai/predictions}).}
+    \label{fig:seq-ia}
+\end{figure}
+
+% --- CONCLUSÃO ---
+\newpage
+\section{CONCLUSÃO}
+
+A refatoração incremental do backend do projeto Sched validou as premissas estabelecidas, preservando as regras de negócio legadas enquanto elevava a qualidade arquitetural do ecossistema de software. A explicitação de padrões consolidados de engenharia (como \textit{Strategy}, \textit{Adapter} e a inversão de dependências via portas de isolamento) proporcionou maior robustez contra alterações de código.
+
+Vulnerabilidades de segurança críticas foram sanadas através da eliminação de chaves criptográficas em texto claro e fechamento de endpoints vulneráveis da inteligência artificial. A desacoplamento de chamadas estáticas do Spring Security aumentou drasticamente o índice de testabilidade unitária da aplicação.
+
+Como limitações da iteração atual, destaca-se a ausência de mecanismos automáticos para invalidação de tokens JWT antes da janela de expiração (\textit{blocklisting}), falta de paginação nativa nos endpoints de listagem de estoque e dependência de atualizações manuais no arquivo de contrato OpenAPI. Estas dívidas técnicas foram catalogadas e priorizadas como melhorias em ciclos futuros de engenharia, recomendando-se a introdução da biblioteca \texttt{springdoc-openapi} para geração automatizada de documentação e desenvolvimento de suítes de testes de integração \textit{end-to-end}.
+
+% --- REFERÊNCIAS ---
+\newpage
+\section*{REFERÊNCIAS}
+\addcontentsline{toc}{section}{REFERÊNCIAS}
+
+\noindent FOWLER, M. \textbf{Patterns of Enterprise Application Architecture}. Boston: Addison-Wesley, 2002.
+
+\vspace{0.5cm}
+
+\noindent GAMMA, E.; HELM, R.; JOHNSON, R.; VLISSIDES, J. \textbf{Design Patterns: Elements of Reusable Object-Oriented Software}. Boston: Addison-Wesley, 1994.
+
+\vspace{0.5cm}
+
+\noindent INTERNATIONAL ORGANIZATION FOR STANDARDIZATION. \textbf{ISO/IEC 25010:2023} — Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE) — Product quality model. Genebra: ISO, 2023.
+
+\vspace{0.5cm}
+
+\noindent MARTIN, R. C. \textbf{Clean Code: A Handbook of Agile Software Craftsmanship}. Upper Saddle River: Prentice Hall, 2008.
+
+\vspace{0.5cm}
+
+\noindent MARTIN, R. C. \textbf{Clean Architecture: A Craftsman's Guide to Software Structure and Design}. Boston: Prentice Hall, 2017.
+
+\vspace{0.5cm}
+
+\noindent NYGARD, M. \textbf{Documenting Architecture Decisions}. 2011. Disponível em: \url{https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions}. Acesso em: 5 jun. 2026.
+
+% --- ANEXOS ---
+\newpage
+\section*{ANEXOS}
+\addcontentsline{toc}{section}{ANEXOS}
+
+\noindent Os artefatos técnicos, diagramas e o código-fonte completo que fundamentam esta documentação de arquitetura encontram-se disponíveis publicamente no repositório Git listado a seguir. A estrutura de diretórios foi organizada de modo a garantir a rastreabilidade das decisões tomadas:
+
+\begin{itemize}
+    \item \textbf{Repositório Principal do Projeto (Aberto e Acessível):} \\ 
+    Link para o código-fonte completo do ecossistema Sched. \\
+    \url{https://github.com/JheniferLais/TRABALHO-FINAL-ARQ}
+    
+    \item \textbf{Registro de Decisões Arquiteturais (\texttt{/adrs}):} \\ 
+    Diretório contendo todos os Registros de Decisões Arquiteturais (ADRs 001 a 008) mapeados individualmente em formato Markdown. \\
+    \url{https://github.com/JheniferLais/TRABALHO-FINAL-ARQ/tree/main/docs/adrs}
+    
+    \item \textbf{Fontes dos Diagramas Arquiteturais (\texttt{/diagrams}):} \\ 
+    Diretório contendo os arquivos de origem dos diagramas (modelados via ferramentas de diagramação como PlantUML/Mermaid). \\
+    \url{https://github.com/JheniferLais/TRABALHO-FINAL-ARQ/tree/main/docs/diagrams}
+    
+    \item \textbf{Instruções de Instalação e Execução (\texttt{README.md}):} \\ 
+    Documentação técnica principal localizada na raiz do repositório, contendo os pré-requisitos, instruções de build e comandos para execução local do monolito modular. \\
+    \url{https://github.com/JheniferLais/TRABALHO-FINAL-ARQ/blob/main/README.md}
+\end{itemize}
+
+\end{document}

@@ -6,9 +6,6 @@ além do **Builder**.
 
 ## Domínio
 
-## Geral
-![Diagrama de Classes - Geral](./imgs/02-diagrama-de-classe(GERAL).png)
-
 ## Padrão Strategy (alertas)
 ![Diagrama de Classes - Strategy](./imgs/02-diagrama-de-classe(STRATEGY).png)
 
@@ -20,62 +17,6 @@ além do **Builder**.
 
 <details>
 <summary><b>Código-fonte Mermaid (Clique para expandir)</b></summary>
-
-## Geral
-
-```mermaid
-classDiagram
-    class Company {
-        +Long id
-        +String name
-        +String cnpj
-        +Boolean deleted
-        +LocalDateTime createdAt
-    }
-    class User {
-        +Long id
-        +String name
-        +String email
-        +String password
-        +Role role
-        +Boolean deleted
-    }
-    class Product {
-        +Long id
-        +String name
-        +String category
-        +Double price
-        +String unitOfMeasure
-        +Boolean isPerishable
-        +Boolean deleted
-    }
-    class Stock {
-        +Long id
-        +Integer quantity
-        +LocalDateTime expirationDate
-        +LocalDateTime createdAt
-        +NO_EXPIRATION$ LocalDateTime
-    }
-    class Sale {
-        +Long id
-        +Integer totalSold
-        +Double totalPrice
-        +LocalDateTime saleDate
-    }
-    class Role {
-        <<enumeration>>
-        ADMIN
-        USER
-    }
-
-    Company "1" o-- "*" User : possui
-    Company "1" o-- "*" Product : possui
-    Product "1" o-- "*" Stock : tem lotes
-    Product "1" o-- "*" Sale : vendido em
-    User "1" o-- "*" Stock : createdBy
-    User "1" o-- "*" Sale : soldBy
-    User --> Role
-```
 
 ## Padrão Strategy (alertas)
 
@@ -114,20 +55,31 @@ classDiagram
 
 ```mermaid
 classDiagram
+    class AIService {
+        -AIRepository aiRepository
+        -DemandForecastPort demandForecastPort
+        +getPredictions() List~AIPredictionResponse~
+        +getDemandData() List~AIDemandDataRequest~
+    }
+
     class DemandForecastPort {
         <<interface>>
-        +List~AIPredictionResponse~ forecast(List~AIDemandDataRequest~)
+        +forecast(List~AIDemandDataRequest~) List~AIPredictionResponse~
     }
+
     class FlaskDemandForecastClient {
         -RestTemplate restTemplate
         -String forecastUrl
-        +forecast(demandData)
+        +forecast(List~AIDemandDataRequest~) List~AIPredictionResponse~
     }
-    class AIService {
-        +getPredictions()
+
+    class RestTemplate {
+        +postForObject(url, body, type)
     }
+
+    AIService --> DemandForecastPort : 
     DemandForecastPort <|.. FlaskDemandForecastClient
-    AIService --> DemandForecastPort : depende da abstração
+    FlaskDemandForecastClient --> RestTemplate : adapta HTTP -> Flask /predict
 ```
 
 ## Padrão Builder
