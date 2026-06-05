@@ -7,6 +7,7 @@ import com.sched.api.domain.User;
 import com.sched.api.dto.request.StockRequest;
 import com.sched.api.dto.response.StockBatchResponse;
 import com.sched.api.dto.response.StockResponse;
+import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
