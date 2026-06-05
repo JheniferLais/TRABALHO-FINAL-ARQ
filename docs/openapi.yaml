@@ -1,0 +1,650 @@
+openapi: 3.0.3
+info:
+  title: Sched API
+  version: "1.0.0"
+  description: >
+    REST API do **Sched**, plataforma de gestão de estoque, vendas e previsão de
+    demanda (IA) para pequenos comércios alimentares. Todos os recursos são
+    isolados por empresa (multi-tenant) a partir do usuário autenticado.
+
+    ## Autenticação
+    A API é stateless e usa JWT (Bearer). Obtenha o token em `POST /auth/login`
+    e envie-o no header `Authorization: Bearer <token>` nas demais chamadas.
+
+    ## Versionamento
+    A versão corrente é a v1 (implícita na raiz). A estratégia adotada é
+    versionamento por caminho (`/api/v1/...`) quando uma mudança incompatível
+    for necessária; até lá, evolui-se de forma retrocompatível.
+
+    ## Convenção de erros
+    Todos os erros retornam o schema `ErrorDetails` com `timestamp`, `status`,
+    `error` e `message`. Erros de validação (`400`) trazem em `message` um mapa
+    `campo -> mensagem`.
+servers:
+  - url: http://localhost:8080
+    description: Ambiente local
+
+tags:
+  - name: Auth
+    description: Registro de empresa, login e criação de usuários
+  - name: User
+    description: Gestão de usuários da empresa
+  - name: Company
+    description: Gestão da empresa (somente ADMIN)
+  - name: Product
+    description: Catálogo de produtos
+  - name: Stock
+    description: Lotes de estoque
+  - name: Sale
+    description: Registro de vendas (baixa FIFO de estoque)
+  - name: Alert
+    description: Alertas de vencimento e estoque baixo
+  - name: AI
+    description: Previsão de demanda (integração com serviço de IA)
+
+paths:
+  /auth/company:
+    post:
+      tags: [Auth]
+      summary: Registra uma nova empresa e seu usuário ADMIN
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyRequest' }
+      responses:
+        '200':
+          description: Empresa criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompanyResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Autentica e retorna um token JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/user:
+    post:
+      tags: [Auth]
+      summary: Cria um usuário comum na empresa do ADMIN autenticado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserRequest' }
+      responses:
+        '200':
+          description: Usuário criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /user/me:
+    get:
+      tags: [User]
+      summary: Retorna o usuário autenticado
+      responses:
+        '200':
+          description: Usuário atual
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+
+  /user:
+    get:
+      tags: [User]
+      summary: Lista os usuários da empresa (ADMIN)
+      responses:
+        '200':
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UserResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /user/{id}:
+    get:
+      tags: [User]
+      summary: Busca usuário por id (ADMIN)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200':
+          description: Usuário
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [User]
+      summary: Atualiza um usuário (o próprio usuário ou um ADMIN)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdateRequest' }
+      responses:
+        '200':
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [User]
+      summary: Exclusão lógica de usuário (ADMIN)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '204': { description: Removido }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /company:
+    get:
+      tags: [Company]
+      summary: Lista empresas ativas (ADMIN)
+      responses:
+        '200':
+          description: Lista de empresas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CompanyResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /company/{id}:
+    get:
+      tags: [Company]
+      summary: Busca empresa por id (ADMIN)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200':
+          description: Empresa
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompanyResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Company]
+      summary: Atualiza a empresa (ADMIN)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyUpdateRequest' }
+      responses:
+        '200':
+          description: Empresa atualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompanyResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Company]
+      summary: Exclusão lógica da empresa (ADMIN)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '204': { description: Removida }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /product:
+    get:
+      tags: [Product]
+      summary: Lista produtos ativos da empresa
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProductResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Product]
+      summary: Cria um produto (e um lote de estoque inicial vazio)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductRequest' }
+      responses:
+        '200':
+          description: Produto criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /product/{id}:
+    get:
+      tags: [Product]
+      summary: Busca produto por id
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200':
+          description: Produto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Product]
+      summary: Atualiza um produto
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductRequest' }
+      responses:
+        '200':
+          description: Produto atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Product]
+      summary: Exclusão lógica do produto (falha se houver estoque ativo)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: Removido }
+        '400':
+          description: Produto ainda possui estoque
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorDetails' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /stock:
+    get:
+      tags: [Stock]
+      summary: Lista todos os lotes de estoque da empresa
+      responses:
+        '200':
+          description: Lotes de estoque
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StockBatchResponse' }
+
+  /stock/filterProduct:
+    get:
+      tags: [Stock]
+      summary: Resumo de estoque agregado por produto
+      responses:
+        '200':
+          description: Resumo por produto
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StockResponse' }
+
+  /stock/{id}:
+    post:
+      tags: [Stock]
+      summary: Cria um lote de estoque para o produto informado
+      description: O parâmetro `id` é o id do **produto**.
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StockRequest' }
+      responses:
+        '200':
+          description: Lote criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockBatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Stock]
+      summary: Atualiza um lote de estoque
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StockRequest' }
+      responses:
+        '200':
+          description: Lote atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockBatchResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Stock]
+      summary: Remove um lote de estoque
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: Removido }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /sale:
+    get:
+      tags: [Sale]
+      summary: Lista as vendas da empresa
+      responses:
+        '200':
+          description: Lista de vendas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SaleResponse' }
+
+  /sale/{id}:
+    post:
+      tags: [Sale]
+      summary: Registra uma venda do produto informado (baixa FIFO)
+      description: O parâmetro `id` é o id do **produto**. A baixa consome os lotes por data de validade crescente.
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaleRequest' }
+      responses:
+        '200':
+          description: Venda registrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaleResponse' }
+        '400':
+          description: Estoque insuficiente ou corpo inválido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorDetails' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /alert/expiring:
+    get:
+      tags: [Alert]
+      summary: Produtos que vencem nos próximos 30 dias
+      responses:
+        '200':
+          description: Alertas de vencimento
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AlertResponse' }
+
+  /alert/low-stock:
+    get:
+      tags: [Alert]
+      summary: Produtos com estoque baixo
+      responses:
+        '200':
+          description: Alertas de estoque baixo
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AlertResponse' }
+
+  /ai/predictions:
+    get:
+      tags: [AI]
+      summary: Previsão de demanda por produto (serviço de IA)
+      responses:
+        '200':
+          description: Previsões
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AIPredictionResponse' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    BadRequest:
+      description: Requisição inválida (validação ou corpo malformado)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDetails' }
+    Unauthorized:
+      description: Credenciais inválidas
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDetails' }
+    Forbidden:
+      description: Sem permissão para o recurso
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDetails' }
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDetails' }
+    Conflict:
+      description: Conflito de integridade de dados
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorDetails' }
+
+  schemas:
+    ErrorDetails:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        status: { type: integer, example: 400 }
+        error: { type: string, example: Bad Request }
+        message:
+          description: Texto único ou, em validações, um mapa campo->mensagem.
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: { type: string }
+    Role:
+      type: string
+      enum: [ADMIN, USER]
+
+    CompanyRequest:
+      type: object
+      required: [name, cnpj, emailADMIN, passwordADMIN]
+      properties:
+        name: { type: string }
+        cnpj: { type: string }
+        emailADMIN: { type: string, format: email }
+        passwordADMIN: { type: string, format: password }
+    CompanyUpdateRequest:
+      type: object
+      required: [name, cnpj]
+      properties:
+        name: { type: string }
+        cnpj: { type: string }
+    CompanyResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        cnpj: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+
+    UserRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    UserUpdateRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+    UserResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+        companyId: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+
+    ProductRequest:
+      type: object
+      required: [name, category, price, unitOfMeasure, isPerishable]
+      properties:
+        name: { type: string }
+        category: { type: string }
+        price: { type: number, format: double }
+        unitOfMeasure: { type: string }
+        isPerishable: { type: boolean }
+    ProductResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        category: { type: string }
+        price: { type: number, format: double }
+        isPerishable: { type: boolean }
+        unitOfMeasure: { type: string }
+        createdAt: { type: string, format: date-time }
+        company: { $ref: '#/components/schemas/CompanyResponse' }
+
+    StockRequest:
+      type: object
+      required: [quantity, expirationDate]
+      properties:
+        quantity: { type: integer }
+        expirationDate: { type: string, format: date-time }
+    StockBatchResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        productName: { type: string }
+        productCategory: { type: string }
+        isPerishable: { type: boolean }
+        quantity: { type: integer }
+        unitOfMeasure: { type: string }
+        createdAt: { type: string, format: date-time }
+        expirationDate: { type: string, format: date-time }
+        createdBy: { type: string }
+    StockResponse:
+      type: object
+      properties:
+        productId: { type: integer, format: int64 }
+        productName: { type: string }
+        productCategory: { type: string }
+        productIsPerishable: { type: boolean }
+        unitOfMeasure: { type: string }
+        availableQuantity: { type: integer }
+        lastStockEntry: { type: string, format: date-time }
+        nextToExpireDate: { type: string, format: date-time, nullable: true }
+        latestExpirationDate: { type: string, format: date-time, nullable: true }
+
+    SaleRequest:
+      type: object
+      required: [totalSold]
+      properties:
+        totalSold: { type: integer }
+    SaleResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        productName: { type: string }
+        productCategory: { type: string }
+        totalPrice: { type: number, format: double }
+        totalSold: { type: integer }
+        soldBy: { type: string }
+        saleDate: { type: string, format: date-time }
+
+    AlertResponse:
+      type: object
+      properties:
+        stockId: { type: integer, format: int64 }
+        expirationDate: { type: string, format: date-time }
+        quantity: { type: integer }
+        productName: { type: string }
+        unitOfMeasure: { type: string }
+
+    AIPredictionResponse:
+      type: object
+      properties:
+        productName: { type: string }
+        stockQuantity: { type: integer }
+        prediction7Days: { type: integer }
+        prediction15Days: { type: integer }
+        prediction30Days: { type: integer }
+        recommendedRestock: { type: integer }
+        alert: { type: string }
+        modelUsed: { type: string }
+        modelMAE: { type: number, format: double }
+
+security:
+  - bearerAuth: []
