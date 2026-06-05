@@ -14,10 +14,10 @@ O **Sched** é uma plataforma voltada a minimercados, mini padarias e pequenos c
 
 ## 📚 Documentação de Arquitetura
 
-- **[docs/adrs](docs/adrs/)** — decisões arquiteturais (ADRs).
-- **[docs/diagrams](docs/diagrams/)** — diagramas de arquitetura, classes e sequência (Mermaid).
+- **[docs/adrs](docs/adrs)** — decisões arquiteturais (ADRs).
+- **[docs/diagrams](docs/diagrams)** — diagramas de arquitetura, classes e sequência (Mermaid).
 - **[docs/openapi.yaml](docs/openapi.yaml)** — especificação OpenAPI 3.0 da API.
-- **[docs/DOCUMENTACAO-FINAL.md](docs/DOCUMENTACAO-FINAL.md)** — documento consolidado (arquitetura, atributos de qualidade, SOLID, Clean Code, GoF, API).
+- **[docs/doc_final.pdf](docs/doc_final.pdf)** — documento consolidado (arquitetura, atributos de qualidade, SOLID, Clean Code, GoF, API).
 
 ## Como Rodar?
 
