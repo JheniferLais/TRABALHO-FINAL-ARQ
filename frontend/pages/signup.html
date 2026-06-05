@@ -71,8 +71,9 @@
   </div>
 </div>
 
-<script src="../js/alert.js"></script>
-<script>
+  <script src="../js/alert.js"></script>
+  <script src="../js/CONSTS.js"></script>
+  <script>
   async function cadastrar() {
     const name = document.getElementById("name").value;
     const cnpj = document.getElementById("cnpj").value;
@@ -112,7 +113,7 @@
     try {
       console.log("Enviando dados para o servidor...");
       
-      const response = await fetch("http://localhost:8080/auth/company", {
+      const response = await fetch(`${API_URL}/auth/company`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

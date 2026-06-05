@@ -15,7 +15,7 @@ async function validateToken() {
     if (!token) return null;
 
     try {
-        const response = await fetch("http://localhost:8080/user/me", {
+        const response = await fetch(`${API_URL}/user/me`, {
             headers: {
                 "Authorization": "Bearer " + token
             }

@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             try {
                 const token = localStorage.getItem("token");
-                const response = await fetch(`http://localhost:8080/sale/${productId}`, {
+                const response = await fetch(`${API_URL}/sale/${productId}`, {
                     method: "POST",
                     headers: {
                         "Authorization": "Bearer " + token,
@@ -257,8 +257,8 @@ async function loadProducts() {
         };
 
         const [resStock, resProduct] = await Promise.all([
-            fetch("http://localhost:8080/stock/filterProduct", { headers }),
-            fetch("http://localhost:8080/product", { headers })
+            fetch(`${API_URL}/stock/filterProduct`, { headers }),
+            fetch(`${API_URL}/product`, { headers })
         ]);
 
         const stockData  = await resStock.json();

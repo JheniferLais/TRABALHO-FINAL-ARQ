@@ -210,7 +210,7 @@ function renderPagination(productsList) {
 async function loadProducts() {
     try {
         const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:8080/product", {
+        const response = await fetch(`${API_URL}/product`, {
             headers: { "Authorization": "Bearer " + token }
         });
         const products = await response.json();
@@ -248,7 +248,7 @@ async function saveProduct() {
 
     try {
         const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:8080/product", {
+        const response = await fetch(`${API_URL}/product`, {
             method: "POST",
             headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify(productData)
@@ -300,7 +300,7 @@ async function updateProduct() {
 
     try {
         const token = localStorage.getItem("token");
-        const response = await fetch(`http://localhost:8080/product/${idParaEditar}`, {
+        const response = await fetch(`${API_URL}/product/${idParaEditar}`, {
             method: "PUT",
             headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify(productData)
@@ -378,7 +378,7 @@ async function deleteProduct() {
 
     try {
         const token = localStorage.getItem("token");
-        const response = await fetch(`http://localhost:8080/product/${id}`, {
+        const response = await fetch(`${API_URL}/product/${id}`, {
             method: "DELETE",
             headers: { "Authorization": "Bearer " + token }
         });

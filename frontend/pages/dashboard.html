@@ -318,6 +318,7 @@
   </div>
       <script src="../js/auth.js"></script>
       <script src="../js/alert.js"></script>
+      <script src="../js/CONSTS.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script>
         document.addEventListener("DOMContentLoaded", () => {
@@ -343,7 +344,7 @@
                     return;
                 }
 
-                const response = await fetch("http://localhost:8080/product", {
+                const response = await fetch(`${API_URL}/product`, {
                     headers: {
                         "Authorization": "Bearer " + token
                     }
@@ -374,7 +375,7 @@
                     return;
                 }
 
-                const response = await fetch("http://localhost:8080/stock/filterProduct", {
+                const response = await fetch(`${API_URL}/stock/filterProduct`, {
                     method: "GET",
                     headers: {
                         "Authorization": "Bearer " + token,
@@ -409,7 +410,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch("http://localhost:8080/sale", {
+                const response = await fetch(`${API_URL}/sale`, {
                     headers: { "Authorization": "Bearer " + token }
                 });
 
@@ -489,7 +490,7 @@
             const token = localStorage.getItem("token");
 
             try {
-                const response = await fetch("http://localhost:8080/alert/expiring", {
+                const response = await fetch(`${API_URL}/alert/expiring`, {
                     method: "GET",
                     headers: {
                         "Authorization": "Bearer " + token,
@@ -512,7 +513,7 @@
             const token = localStorage.getItem("token");
 
             try {
-                const response = await fetch("http://localhost:8080/alert/low-stock", {
+                const response = await fetch(`${API_URL}/alert/low-stock`, {
                     method: "GET",
                     headers: {
                         "Authorization": "Bearer " + token,
@@ -704,7 +705,7 @@
                 const token = localStorage.getItem("token");
                 if (!token) return;
 
-                const response = await fetch("http://localhost:8080/ai/predictions", {
+                const response = await fetch(`${API_URL}/ai/predictions`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -750,7 +751,7 @@
             if (!token) return;
 
             try {
-                const response = await fetch("http://localhost:8080/sale", {
+                const response = await fetch(`${API_URL}/sale`, {
                     headers: { "Authorization": "Bearer " + token }
                 });
                 if (!response.ok) return;

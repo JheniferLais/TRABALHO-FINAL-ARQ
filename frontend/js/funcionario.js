@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const token = localStorage.getItem("token");
 
-            const response = await fetch("http://localhost:8080/auth/user", {
+            const response = await fetch(`${API_URL}/auth/user`, {
                 method: "POST",
                 headers: {
                     "Authorization": "Bearer " + token,
@@ -82,7 +82,7 @@ async function loadEmployees() {
     const token = localStorage.getItem("token");
 
     try {
-        const response = await fetch("http://localhost:8080/user", {
+        const response = await fetch(`${API_URL}/user`, {
             method: "GET",
             headers: {
                 "Authorization": "Bearer " + token,
@@ -143,7 +143,7 @@ async function deleteEmployee(id) {
     const token = localStorage.getItem("token");
 
     try {
-        const response = await fetch(`http://localhost:8080/user/${id}`, {
+        const response = await fetch(`${API_URL}/user/${id}`, {
             method: "DELETE",
             headers: {
                 "Authorization": "Bearer " + token

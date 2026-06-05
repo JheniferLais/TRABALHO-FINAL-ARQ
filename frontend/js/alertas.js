@@ -1,5 +1,3 @@
-const API_URL = "http://localhost:8080";
-
 const lowStockTable = document.getElementById("lowStockTable");
 const expirationTable = document.getElementById("expirationTable");
 const forecastCards = document.getElementById("forecastCards");

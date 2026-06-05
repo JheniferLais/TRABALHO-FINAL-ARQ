@@ -372,7 +372,7 @@ function ajustarLarguraSelect(select) {
 async function loadHistorySale() {
     try {
         const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:8080/sale", {
+        const response = await fetch(`${API_URL}/sale`, {
             headers: { "Authorization": "Bearer " + token }
         });
         const historySale = await response.json();

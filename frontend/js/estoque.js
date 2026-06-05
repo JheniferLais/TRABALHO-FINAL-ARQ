@@ -235,7 +235,7 @@ function renderPagination(stockList) {
 async function loadStockProducts() {
     try {
         const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:8080/stock/filterProduct", {
+        const response = await fetch(`${API_URL}/stock/filterProduct`, {
             method: "GET",
             headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" }
         });
@@ -266,7 +266,7 @@ async function registerStockEntry(productId, quantity, expirationDate) {
             expirationDate: `${expirationDate}T23:59:59`
         };
 
-        const response = await fetch(`http://localhost:8080/stock/${productId}`, {
+        const response = await fetch(`${API_URL}/stock/${productId}`, {
             method: "POST",
             headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
             body: JSON.stringify(payload)
