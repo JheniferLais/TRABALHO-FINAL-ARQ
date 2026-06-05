@@ -6,15 +6,14 @@ import com.sched.api.dto.request.CompanyUpdateRequest;
 import com.sched.api.dto.response.CompanyResponse;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.CompanyRepository;
+import com.sched.api.security.AuthenticatedUserProvider;
 import com.sched.api.service.CompanyService;
-import com.sched.api.utils.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -27,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +47,9 @@ class CompanyServiceTest {
 
     @Mock
     private CompanyRepository companyRepository;
+
+    @Mock
+    private AuthenticatedUserProvider authenticatedUserProvider;
 
     @InjectMocks
     private CompanyService companyService;
@@ -127,26 +128,23 @@ class CompanyServiceTest {
         // Arrange
         final CompanyUpdateRequest request = criarCompanyUpdateRequestValido();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(companyRepository.findByIdAndDeletedFalse(COMPANY_ID)).thenReturn(Optional.of(company));
         when(companyRepository.save(any(Company.class))).thenReturn(company);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getAuthenticatedUser).thenReturn(authenticatedUser);
+        // Act
+        final CompanyResponse response = companyService.update(COMPANY_ID, request);
 
-            // Act
-            final CompanyResponse response = companyService.update(COMPANY_ID, request);
+        // Assert
+        assertAll(
+                () -> assertNotNull(response),
+                () -> assertEquals(COMPANY_ID, response.id()),
+                () -> assertEquals(UPDATED_COMPANY_NAME, company.getName()),
+                () -> assertEquals(UPDATED_COMPANY_CNPJ, company.getCnpj())
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertNotNull(response),
-                    () -> assertEquals(COMPANY_ID, response.id()),
-                    () -> assertEquals(UPDATED_COMPANY_NAME, company.getName()),
-                    () -> assertEquals(UPDATED_COMPANY_CNPJ, company.getCnpj())
-            );
-
-            verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
-            verify(companyRepository).save(company);
-        }
+        verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
+        verify(companyRepository).save(company);
     }
 
     @Test
@@ -155,54 +153,45 @@ class CompanyServiceTest {
         final CompanyUpdateRequest request = criarCompanyUpdateRequestValido();
         final User otherUser = criarUsuarioAutenticado(criarOutraEmpresaValida());
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(otherUser);
         when(companyRepository.findByIdAndDeletedFalse(COMPANY_ID)).thenReturn(Optional.of(company));
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getAuthenticatedUser).thenReturn(otherUser);
+        // Act
+        final Executable action = () -> companyService.update(COMPANY_ID, request);
 
-            // Act
-            final Executable action = () -> companyService.update(COMPANY_ID, request);
-
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-            verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
-        }
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
+        verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
     }
 
     @Test
     void delete_QuandoUsuarioPertenceMesmaEmpresa_MarcaEmpresaComoDeletada() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(companyRepository.findByIdAndDeletedFalse(COMPANY_ID)).thenReturn(Optional.of(company));
         when(companyRepository.save(any(Company.class))).thenReturn(company);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getAuthenticatedUser).thenReturn(authenticatedUser);
+        // Act
+        companyService.delete(COMPANY_ID);
 
-            // Act
-            companyService.delete(COMPANY_ID);
-
-            // Assert
-            assertTrue(company.getDeleted());
-            verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
-            verify(companyRepository).save(company);
-        }
+        // Assert
+        assertTrue(company.getDeleted());
+        verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
+        verify(companyRepository).save(company);
     }
 
     @Test
     void delete_QuandoEmpresaNaoExiste_LancaResourceNotFoundException() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(companyRepository.findByIdAndDeletedFalse(NONEXISTENT_COMPANY_ID)).thenReturn(Optional.empty());
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getAuthenticatedUser).thenReturn(authenticatedUser);
+        // Act
+        final Executable action = () -> companyService.delete(NONEXISTENT_COMPANY_ID);
 
-            // Act
-            final Executable action = () -> companyService.delete(NONEXISTENT_COMPANY_ID);
-
-            // Assert
-            assertThrows(ResourceNotFoundException.class, action);
-            verify(companyRepository).findByIdAndDeletedFalse(NONEXISTENT_COMPANY_ID);
-        }
+        // Assert
+        assertThrows(ResourceNotFoundException.class, action);
+        verify(companyRepository).findByIdAndDeletedFalse(NONEXISTENT_COMPANY_ID);
     }
 
     @Test
@@ -210,18 +199,15 @@ class CompanyServiceTest {
         // Arrange
         final User otherUser = criarUsuarioAutenticado(criarOutraEmpresaValida());
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(otherUser);
         when(companyRepository.findByIdAndDeletedFalse(COMPANY_ID)).thenReturn(Optional.of(company));
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-            securityUtils.when(SecurityUtils::getAuthenticatedUser).thenReturn(otherUser);
+        // Act
+        final Executable action = () -> companyService.delete(COMPANY_ID);
 
-            // Act
-            final Executable action = () -> companyService.delete(COMPANY_ID);
-
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-            verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
-        }
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
+        verify(companyRepository).findByIdAndDeletedFalse(COMPANY_ID);
     }
 
     private Company criarEmpresaValida() {

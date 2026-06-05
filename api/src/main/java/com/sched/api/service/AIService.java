@@ -5,7 +5,7 @@ import com.sched.api.domain.User;
 import com.sched.api.dto.request.AIDemandDataRequest;
 import com.sched.api.dto.response.AIPredictionResponse;
 import com.sched.api.repository.AIRepository;
-import com.sched.api.utils.SecurityUtils;
+import com.sched.api.security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +18,7 @@ public class AIService {
 
     private final AIRepository aiRepository;
     private final DemandForecastPort demandForecastPort;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public List<AIPredictionResponse> getPredictions() {
@@ -25,7 +26,7 @@ public class AIService {
     }
 
     public List<AIDemandDataRequest> getDemandData() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Long companyId = authUser.getCompany().getId();
 
         return aiRepository.getDemandDataByCompany(companyId);

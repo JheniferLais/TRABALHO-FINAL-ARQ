@@ -6,7 +6,7 @@ import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.domain.User;
 import com.sched.api.repository.UserRepository;
-import com.sched.api.utils.SecurityUtils;
+import com.sched.api.security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +19,11 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public UserResponse me() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
 
         User user = userRepository.findByEmail(authUser.getEmail())
                 .orElseThrow(ResourceNotFoundException::new);
@@ -32,7 +33,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponse> getAll() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         return userRepository.findAllByCompanyIdAndDeletedFalse(authUser.getCompany().getId())
                 .stream()
                 .map(this::mapToResponse)
@@ -41,7 +42,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponse getById(Long id) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
 
         User user = userRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(ResourceNotFoundException::new);
@@ -53,7 +54,7 @@ public class UserService {
 
     @Transactional
     public UserResponse update(Long id, UserUpdateRequest dto) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
 
         if (!authUser.getId().equals(id) && !isAdmin(authUser)) {
             throw new AccessDeniedException();
@@ -72,7 +73,7 @@ public class UserService {
 
     @Transactional
     public void delete(Long id) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
 
         User user = userRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(ResourceNotFoundException::new);

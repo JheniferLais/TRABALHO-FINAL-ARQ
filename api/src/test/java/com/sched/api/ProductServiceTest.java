@@ -8,16 +8,15 @@ import com.sched.api.dto.response.ProductResponse;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
+import com.sched.api.security.AuthenticatedUserProvider;
 import com.sched.api.service.ProductService;
 import com.sched.api.service.StockService;
-import com.sched.api.utils.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -32,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,6 +73,9 @@ class ProductServiceTest {
     @Mock
     private StockService stockService;
 
+    @Mock
+    private AuthenticatedUserProvider authenticatedUserProvider;
+
     @InjectMocks
     private ProductService productService;
 
@@ -92,97 +93,87 @@ class ProductServiceTest {
     @Test
     void findAll_QuandoUsuarioAutenticadoPossuiEmpresa_RetornaProdutosDaEmpresa() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findAllByCompanyIdAndDeletedFalse(COMPANY_ID))
                 .thenReturn(List.of(product));
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final List<ProductResponse> response = productService.findAll();
 
-            // Act
-            final List<ProductResponse> response = productService.findAll();
+        // Assert
+        assertAll(
+                () -> assertEquals(1, response.size()),
+                () -> assertEquals(PRODUCT_ID, response.get(0).id()),
+                () -> assertEquals(PRODUCT_NAME, response.get(0).name())
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertEquals(1, response.size()),
-                    () -> assertEquals(PRODUCT_ID, response.get(0).id()),
-                    () -> assertEquals(PRODUCT_NAME, response.get(0).name())
-            );
-
-            verify(productRepository)
-                    .findAllByCompanyIdAndDeletedFalse(COMPANY_ID);
-        }
+        verify(productRepository)
+                .findAllByCompanyIdAndDeletedFalse(COMPANY_ID);
     }
 
     @Test
     void findAll_QuandoUsuarioEstaDeletado_LancaAccessDeniedException() {
         // Arrange
         authenticatedUser.setDeleted(true);
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action = () -> productService.findAll();
 
-            // Act
-            final Executable action = () -> productService.findAll();
-
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-        }
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
     }
 
     @Test
     void findAll_QuandoEmpresaEstaDeletada_LancaAccessDeniedException() {
         // Arrange
         company.setDeleted(true);
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action = () -> productService.findAll();
 
-            // Act
-            final Executable action = () -> productService.findAll();
-
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-        }
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
     }
 
     @Test
     void findById_QuandoProdutoExisteEPertenceEmpresa_RetornaProductResponse() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(PRODUCT_ID))
                 .thenReturn(Optional.of(product));
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final ProductResponse response = productService.findById(PRODUCT_ID);
 
-            // Act
-            final ProductResponse response = productService.findById(PRODUCT_ID);
+        // Assert
+        assertAll(
+                () -> assertNotNull(response),
+                () -> assertEquals(PRODUCT_ID, response.id()),
+                () -> assertEquals(PRODUCT_NAME, response.name())
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertNotNull(response),
-                    () -> assertEquals(PRODUCT_ID, response.id()),
-                    () -> assertEquals(PRODUCT_NAME, response.name())
-            );
-
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(PRODUCT_ID);
-        }
+        verify(productRepository)
+                .findByIdAndDeletedFalse(PRODUCT_ID);
     }
 
     @Test
     void findById_QuandoProdutoNaoExiste_LancaResourceNotFoundException() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID))
                 .thenReturn(Optional.empty());
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> productService.findById(NONEXISTENT_PRODUCT_ID);
 
-            // Act
-            final Executable action =
-                    () -> productService.findById(NONEXISTENT_PRODUCT_ID);
+        // Assert
+        assertThrows(ResourceNotFoundException.class, action);
 
-            // Assert
-            assertThrows(ResourceNotFoundException.class, action);
-
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
-        }
+        verify(productRepository)
+                .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
     }
 
     @Test
@@ -190,20 +181,18 @@ class ProductServiceTest {
         // Arrange
         final Product otherProduct = criarProdutoValido(criarOutraEmpresaValida());
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(PRODUCT_ID))
                 .thenReturn(Optional.of(otherProduct));
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action = () -> productService.findById(PRODUCT_ID);
 
-            // Act
-            final Executable action = () -> productService.findById(PRODUCT_ID);
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
 
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(PRODUCT_ID);
-        }
+        verify(productRepository)
+                .findByIdAndDeletedFalse(PRODUCT_ID);
     }
 
     @Test
@@ -211,23 +200,21 @@ class ProductServiceTest {
         // Arrange
         final ProductRequest request = criarProductRequestValido();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.save(any(Product.class)))
                 .thenReturn(product);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final ProductResponse response = productService.create(request);
 
-            // Act
-            final ProductResponse response = productService.create(request);
+        // Assert
+        assertNotNull(response);
 
-            // Assert
-            assertNotNull(response);
+        verify(productRepository)
+                .save(any(Product.class));
 
-            verify(productRepository)
-                    .save(any(Product.class));
-
-            verify(stockService)
-                    .create(eq(PRODUCT_ID), any());
-        }
+        verify(stockService)
+                .create(eq(PRODUCT_ID), any());
     }
 
     @Test
@@ -236,15 +223,13 @@ class ProductServiceTest {
         final ProductRequest request = criarProductRequestValido();
 
         authenticatedUser.setDeleted(true);
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action = () -> productService.create(request);
 
-            // Act
-            final Executable action = () -> productService.create(request);
-
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-        }
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
     }
 
     @Test
@@ -252,39 +237,38 @@ class ProductServiceTest {
         // Arrange
         final ProductRequest request = criarProductUpdateRequestValido();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(PRODUCT_ID))
                 .thenReturn(Optional.of(product));
 
         when(productRepository.save(any(Product.class)))
                 .thenReturn(product);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final ProductResponse response =
+                productService.update(PRODUCT_ID, request);
 
-            // Act
-            final ProductResponse response =
-                    productService.update(PRODUCT_ID, request);
+        // Assert
+        assertAll(
+                () -> assertNotNull(response),
+                () -> assertEquals(UPDATED_PRODUCT_NAME, product.getName()),
+                () -> assertEquals(UPDATED_PRODUCT_CATEGORY, product.getCategory()),
+                () -> assertEquals(UPDATED_PRODUCT_PRICE, product.getPrice()),
+                () -> assertEquals(PRODUCT_UNIT_OF_MEASURE, product.getUnitOfMeasure()),
+                () -> assertFalse(product.getIsPerishable())
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertNotNull(response),
-                    () -> assertEquals(UPDATED_PRODUCT_NAME, product.getName()),
-                    () -> assertEquals(UPDATED_PRODUCT_CATEGORY, product.getCategory()),
-                    () -> assertEquals(UPDATED_PRODUCT_PRICE, product.getPrice()),
-                    () -> assertEquals(PRODUCT_UNIT_OF_MEASURE, product.getUnitOfMeasure()),
-                    () -> assertFalse(product.getIsPerishable())
-            );
+        verify(productRepository)
+                .findByIdAndDeletedFalse(PRODUCT_ID);
 
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(PRODUCT_ID);
-
-            verify(productRepository)
-                    .save(product);
-        }
+        verify(productRepository)
+                .save(product);
     }
 
     @Test
     void delete_QuandoProdutoPertenceEmpresaDoUsuario_RealizaExclusaoLogica() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(PRODUCT_ID))
                 .thenReturn(Optional.of(product));
 
@@ -298,56 +282,41 @@ class ProductServiceTest {
         when(productRepository.save(any(Product.class)))
                 .thenReturn(product);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        productService.delete(PRODUCT_ID);
 
-            // Act
-            productService.delete(PRODUCT_ID);
+        // Assert
+        assertTrue(product.getDeleted());
 
-            // Assert
-            assertTrue(product.getDeleted());
+        verify(productRepository)
+                .findByIdAndDeletedFalse(PRODUCT_ID);
 
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(PRODUCT_ID);
+        verify(stockRepository)
+                .existsByProductIdAndQuantityGreaterThanAndProduct_DeletedFalse(
+                        PRODUCT_ID,
+                        0
+                );
 
-            verify(stockRepository)
-                    .existsByProductIdAndQuantityGreaterThanAndProduct_DeletedFalse(
-                            PRODUCT_ID,
-                            0
-                    );
-
-            verify(productRepository)
-                    .save(product);
-        }
+        verify(productRepository)
+                .save(product);
     }
 
     @Test
     void delete_QuandoProdutoNaoExiste_LancaResourceNotFoundException() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID))
                 .thenReturn(Optional.empty());
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> productService.delete(NONEXISTENT_PRODUCT_ID);
 
-            // Act
-            final Executable action =
-                    () -> productService.delete(NONEXISTENT_PRODUCT_ID);
+        // Assert
+        assertThrows(ResourceNotFoundException.class, action);
 
-            // Assert
-            assertThrows(ResourceNotFoundException.class, action);
-
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
-        }
-    }
-
-    private MockedStatic<SecurityUtils> mockSecurityUtils(final User user) {
-        final MockedStatic<SecurityUtils> securityUtils =
-                mockStatic(SecurityUtils.class);
-
-        securityUtils.when(SecurityUtils::getAuthenticatedUser)
-                .thenReturn(user);
-
-        return securityUtils;
+        verify(productRepository)
+                .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
     }
 
     private Company criarEmpresaValida() {

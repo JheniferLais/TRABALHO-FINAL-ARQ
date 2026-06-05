@@ -35,21 +35,24 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/company").permitAll()
-
-                        //tirar depois 
-                        .requestMatchers("/api/ai/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/ai/**").permitAll()
-
                         .requestMatchers(HttpMethod.POST, "/auth/user").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.GET, "/user/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/user/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/user/**").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.GET, "/company/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/company/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/company/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)

@@ -12,21 +12,25 @@ import java.time.ZoneOffset;
 
 @Component
 public class TokenService {
-    @Value("${api.security.token.secret:my-secret}")
-    private String secret;
+
+    @Value("${application.security.jwt.secret}")
+    private String SECRET;
+
+    @Value("${application.security.jwt.expiration}")
+    private long EXPIRATION_SECONDS;
 
     public String generateToken(User user) {
-        Algorithm algorithm = Algorithm.HMAC256(secret);
+        Algorithm algorithm = Algorithm.HMAC256(SECRET);
         return JWT.create()
                 .withIssuer("sched-api")
                 .withSubject(user.getEmail())
-                .withExpiresAt(LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00")))
+                .withExpiresAt(LocalDateTime.now().plusSeconds(EXPIRATION_SECONDS).toInstant(ZoneOffset.of("-03:00")))
                 .sign(algorithm);
     }
 
     public String validateToken(String token) {
         try {
-            Algorithm algorithm = Algorithm.HMAC256(secret);
+            Algorithm algorithm = Algorithm.HMAC256(SECRET);
             return JWT.require(algorithm).withIssuer("sched-api").build().verify(token).getSubject();
         } catch (Exception e) { return ""; }
     }

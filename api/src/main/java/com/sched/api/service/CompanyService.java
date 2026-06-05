@@ -7,7 +7,7 @@ import com.sched.api.dto.response.CompanyResponse;
 import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.CompanyRepository;
-import com.sched.api.utils.SecurityUtils;
+import com.sched.api.security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +19,7 @@ import java.util.List;
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> getAll() {
@@ -35,7 +36,7 @@ public class CompanyService {
 
     @Transactional
     public CompanyResponse update(Long id, CompanyUpdateRequest dto) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = findActiveCompanyOrThrow(id);
 
         validateCompanyAccess(authUser, company);
@@ -48,7 +49,7 @@ public class CompanyService {
 
     @Transactional
     public void delete(Long id) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = findActiveCompanyOrThrow(id);
 
         validateCompanyAccess(authUser, company);

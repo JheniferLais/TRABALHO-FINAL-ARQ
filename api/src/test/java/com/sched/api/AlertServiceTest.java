@@ -3,22 +3,20 @@ package com.sched.api;
 import com.sched.api.domain.Company;
 import com.sched.api.domain.User;
 import com.sched.api.dto.response.AlertResponse;
+import com.sched.api.security.AuthenticatedUserProvider;
 import com.sched.api.service.AlertService;
 import com.sched.api.service.alert.AlertType;
 import com.sched.api.service.alert.StockAlertRule;
-import com.sched.api.utils.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +32,9 @@ class AlertServiceTest {
     @Mock
     private StockAlertRule lowStockRule;
 
+    @Mock
+    private AuthenticatedUserProvider authenticatedUserProvider;
+
     private AlertService alertService;
     private User authenticatedUser;
 
@@ -42,7 +43,7 @@ class AlertServiceTest {
         when(expiringRule.type()).thenReturn(AlertType.EXPIRING);
         when(lowStockRule.type()).thenReturn(AlertType.LOW_STOCK);
 
-        alertService = new AlertService(List.of(expiringRule, lowStockRule));
+        alertService = new AlertService(List.of(expiringRule, lowStockRule), authenticatedUserProvider);
         authenticatedUser = criarUsuarioAutenticado();
     }
 
@@ -50,42 +51,32 @@ class AlertServiceTest {
     void getProductsExpiringInNext30Days_DelegaParaRegraDeVencimento() {
         // Arrange
         final List<AlertResponse> expected = List.of(criarAlerta());
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(expiringRule.evaluate(COMPANY_ID)).thenReturn(expected);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
-            // Act
-            final List<AlertResponse> response = alertService.getProductsExpiringInNext30Days();
+        // Act
+        final List<AlertResponse> response = alertService.getProductsExpiringInNext30Days();
 
-            // Assert
-            assertEquals(expected, response);
-            verify(expiringRule).evaluate(COMPANY_ID);
-            verify(lowStockRule, never()).evaluate(COMPANY_ID);
-        }
+        // Assert
+        assertEquals(expected, response);
+        verify(expiringRule).evaluate(COMPANY_ID);
+        verify(lowStockRule, never()).evaluate(COMPANY_ID);
     }
 
     @Test
     void getProductsWithLowStock_DelegaParaRegraDeEstoqueBaixo() {
         // Arrange
         final List<AlertResponse> expected = List.of(criarAlerta());
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(lowStockRule.evaluate(COMPANY_ID)).thenReturn(expected);
 
-        try (MockedStatic<SecurityUtils> securityUtils = mockSecurityUtils(authenticatedUser)) {
-            // Act
-            final List<AlertResponse> response = alertService.getProductsWithLowStock();
+        // Act
+        final List<AlertResponse> response = alertService.getProductsWithLowStock();
 
-            // Assert
-            assertEquals(expected, response);
-            verify(lowStockRule).evaluate(COMPANY_ID);
-            verify(expiringRule, never()).evaluate(COMPANY_ID);
-        }
-    }
-
-    private MockedStatic<SecurityUtils> mockSecurityUtils(final User user) {
-        final MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class);
-
-        securityUtils.when(SecurityUtils::getAuthenticatedUser).thenReturn(user);
-
-        return securityUtils;
+        // Assert
+        assertEquals(expected, response);
+        verify(lowStockRule).evaluate(COMPANY_ID);
+        verify(expiringRule, never()).evaluate(COMPANY_ID);
     }
 
     private User criarUsuarioAutenticado() {

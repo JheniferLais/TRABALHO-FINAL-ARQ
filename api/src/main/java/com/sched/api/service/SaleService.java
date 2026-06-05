@@ -11,8 +11,7 @@ import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.SaleRepository;
 import com.sched.api.repository.StockRepository;
-import com.sched.api.repository.UserRepository;
-import com.sched.api.utils.SecurityUtils;
+import com.sched.api.security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
@@ -24,16 +23,13 @@ import java.util.List;
 public class SaleService {
     private final SaleRepository saleRepository;
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
     private final StockRepository stockRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     public List<SaleResponse> getAll() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
 
-        User user = userRepository.findByEmail(authUser.getEmail())
-                .orElseThrow(ResourceNotFoundException::new);
-
-        Long companyId = user.getCompany().getId();
+        Long companyId = authUser.getCompany().getId();
 
         List<Sale> sales = saleRepository.findByProduct_Company_Id(companyId);
 
@@ -44,10 +40,7 @@ public class SaleService {
 
     @Transactional
     public SaleResponse create(Long id, SaleRequest dto) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
-
-        User user = userRepository.findByEmail(authUser.getEmail())
-                .orElseThrow(ResourceNotFoundException::new);
+        User authUser = authenticatedUserProvider.getCurrentUser();
 
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(ResourceNotFoundException::new);
@@ -88,7 +81,7 @@ public class SaleService {
                 .totalSold(dto.totalSold())
                 .totalPrice(totalPrice)
                 .product(product)
-                .soldBy(user)
+                .soldBy(authUser)
                 .build();
 
         return new SaleResponse(saleRepository.save(sale));

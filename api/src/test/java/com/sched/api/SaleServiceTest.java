@@ -12,16 +12,14 @@ import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.SaleRepository;
 import com.sched.api.repository.StockRepository;
-import com.sched.api.repository.UserRepository;
+import com.sched.api.security.AuthenticatedUserProvider;
 import com.sched.api.service.SaleService;
-import com.sched.api.utils.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -32,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,10 +67,10 @@ class SaleServiceTest {
     private ProductRepository productRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private StockRepository stockRepository;
 
     @Mock
-    private StockRepository stockRepository;
+    private AuthenticatedUserProvider authenticatedUserProvider;
 
     @InjectMocks
     private SaleService saleService;
@@ -98,47 +95,36 @@ class SaleServiceTest {
                 SALE_QUANTITY,
                 SALE_TOTAL_PRICE
         );
-        mockUsuarioAutenticado();
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
+        when(saleRepository.findByProduct_Company_Id(COMPANY_ID))
+                .thenReturn(List.of(sale));
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final List<SaleResponse> response = saleService.getAll();
 
-            when(saleRepository.findByProduct_Company_Id(COMPANY_ID))
-                    .thenReturn(List.of(sale));
+        // Assert
+        assertEquals(1, response.size());
 
-            // Act
-            final List<SaleResponse> response = saleService.getAll();
-
-            // Assert
-            assertEquals(1, response.size());
-
-            verify(saleRepository)
-                    .findByProduct_Company_Id(COMPANY_ID);
-        }
+        verify(saleRepository)
+                .findByProduct_Company_Id(COMPANY_ID);
     }
 
     @Test
     void getAll_QuandoNaoExistemVendasDaEmpresa_RetornaListaVazia() {
         // Arrange
-        mockUsuarioAutenticado();
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
+        when(saleRepository.findByProduct_Company_Id(COMPANY_ID))
+                .thenReturn(List.of());
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final List<SaleResponse> response = saleService.getAll();
 
-            when(saleRepository.findByProduct_Company_Id(COMPANY_ID))
-                    .thenReturn(List.of());
+        // Assert
+        assertEquals(0, response.size());
 
-            // Act
-            final List<SaleResponse> response = saleService.getAll();
-
-            // Assert
-            assertEquals(0, response.size());
-
-            verify(saleRepository)
-                    .findByProduct_Company_Id(COMPANY_ID);
-        }
+        verify(saleRepository)
+                .findByProduct_Company_Id(COMPANY_ID);
     }
-
 
     @Test
     void create_QuandoEstoqueSuficiente_RegistraVendaEDecrementaEstoque() {
@@ -146,31 +132,27 @@ class SaleServiceTest {
         final SaleRequest request = criarSaleRequestValido();
         final Sale sale = criarVendaValida(SALE_QUANTITY, SALE_TOTAL_PRICE);
 
-        mockUsuarioAutenticado();
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         mockProdutoExistente();
         mockEstoquesDoProduto(stock);
 
         when(saleRepository.save(any(Sale.class))).thenReturn(sale);
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final SaleResponse response =
+                saleService.create(PRODUCT_ID, request);
 
-            // Act
-            final SaleResponse response =
-                    saleService.create(PRODUCT_ID, request);
+        // Assert
+        assertAll(
+                () -> assertNotNull(response),
+                () -> assertEquals(
+                        REMAINING_STOCK_QUANTITY,
+                        stock.getQuantity()
+                )
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertNotNull(response),
-                    () -> assertEquals(
-                            REMAINING_STOCK_QUANTITY,
-                            stock.getQuantity()
-                    )
-            );
-
-            verify(stockRepository).save(stock);
-            verify(saleRepository).save(any(Sale.class));
-        }
+        verify(stockRepository).save(stock);
+        verify(saleRepository).save(any(Sale.class));
     }
 
     @Test
@@ -180,20 +162,16 @@ class SaleServiceTest {
 
         stock.setQuantity(INSUFFICIENT_STOCK_QUANTITY);
 
-        mockUsuarioAutenticado();
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         mockProdutoExistente();
         mockEstoquesDoProduto(stock);
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> saleService.create(PRODUCT_ID, request);
 
-            // Act
-            final Executable action =
-                    () -> saleService.create(PRODUCT_ID, request);
-
-            // Assert
-            assertThrows(InsufficientStockException.class, action);
-        }
+        // Assert
+        assertThrows(InsufficientStockException.class, action);
     }
 
     @Test
@@ -201,42 +179,22 @@ class SaleServiceTest {
         // Arrange
         final SaleRequest request = criarSaleRequestValido();
 
-        mockUsuarioAutenticado();
-
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID))
                 .thenReturn(Optional.empty());
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> saleService.create(
+                        NONEXISTENT_PRODUCT_ID,
+                        request
+                );
 
-            // Act
-            final Executable action =
-                    () -> saleService.create(
-                            NONEXISTENT_PRODUCT_ID,
-                            request
-                    );
+        // Assert
+        assertThrows(ResourceNotFoundException.class, action);
 
-            // Assert
-            assertThrows(ResourceNotFoundException.class, action);
-
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
-        }
-    }
-
-    private MockedStatic<SecurityUtils> mockSecurityUtils(final User user) {
-        final MockedStatic<SecurityUtils> securityUtils =
-                mockStatic(SecurityUtils.class);
-
-        securityUtils.when(SecurityUtils::getAuthenticatedUser)
-                .thenReturn(user);
-
-        return securityUtils;
-    }
-
-    private void mockUsuarioAutenticado() {
-        when(userRepository.findByEmail(USER_EMAIL))
-                .thenReturn(Optional.of(authenticatedUser));
+        verify(productRepository)
+                .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
     }
 
     private void mockProdutoExistente() {

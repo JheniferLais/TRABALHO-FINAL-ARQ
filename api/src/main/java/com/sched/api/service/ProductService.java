@@ -2,6 +2,7 @@ package com.sched.api.service;
 
 import com.sched.api.domain.Company;
 import com.sched.api.domain.Product;
+import com.sched.api.domain.Stock;
 import com.sched.api.domain.User;
 import com.sched.api.dto.request.ProductRequest;
 import com.sched.api.dto.request.StockRequest;
@@ -11,12 +12,11 @@ import com.sched.api.exception.ProductHasStockException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
-import com.sched.api.utils.SecurityUtils;
+import com.sched.api.security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -28,10 +28,11 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final StockRepository stockRepository;
     private final StockService stockService;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public List<ProductResponse> findAll() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
@@ -53,7 +54,7 @@ public class ProductService {
 
     @Transactional
     public ProductResponse create(ProductRequest dto) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
@@ -72,10 +73,9 @@ public class ProductService {
 
         Product savedProduct = productRepository.save(product);
 
-        LocalDateTime defaultDate = LocalDateTime.of(1970, 1, 1, 0, 0);
-        StockRequest dtoS = new StockRequest(0, defaultDate);
+        StockRequest initialEmptyStock = new StockRequest(0, Stock.NO_EXPIRATION);
 
-        stockService.create(savedProduct.getId(), dtoS);
+        stockService.create(savedProduct.getId(), initialEmptyStock);
 
         return new ProductResponse(product);
     }
@@ -111,7 +111,7 @@ public class ProductService {
     }
 
     private Product validateUserCompanyAccess(Long productId) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
