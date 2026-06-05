@@ -13,7 +13,7 @@ import java.util.List;
 @RequestMapping("/stock")
 public class StockController {
 
-    private StockService stockService;
+    private final StockService stockService;
 
     public StockController(StockService stockService) {
         this.stockService = stockService;
@@ -25,7 +25,7 @@ public class StockController {
     }
 
     @GetMapping("/filterProduct")
-    public List<StockResponse> findById() {
+    public List<StockResponse> getProductStockSummary() {
         return stockService.getProductStockSummary();
     }
 

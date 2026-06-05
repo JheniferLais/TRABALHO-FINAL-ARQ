@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 @Table(name = "stock_sched")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Stock {
+    public static final LocalDateTime NO_EXPIRATION = LocalDateTime.of(1970, 1, 1, 0, 0);
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

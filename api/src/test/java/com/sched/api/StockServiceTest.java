@@ -10,15 +10,14 @@ import com.sched.api.dto.response.StockResponse;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
+import com.sched.api.security.AuthenticatedUserProvider;
 import com.sched.api.service.StockService;
-import com.sched.api.utils.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -100,6 +99,9 @@ class StockServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private AuthenticatedUserProvider authenticatedUserProvider;
+
     @InjectMocks
     private StockService stockService;
 
@@ -119,21 +121,18 @@ class StockServiceTest {
     @Test
     void getAll_QuandoUsuarioPossuiEmpresa_RetornaLotesDeEstoqueDaEmpresa() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID))
                 .thenReturn(List.of(stock));
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final List<StockBatchResponse> response = stockService.getAll();
 
-            // Act
-            final List<StockBatchResponse> response = stockService.getAll();
+        // Assert
+        assertEquals(1, response.size());
 
-            // Assert
-            assertEquals(1, response.size());
-
-            verify(stockRepository)
-                    .findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID);
-        }
+        verify(stockRepository)
+                .findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID);
     }
 
     @Test
@@ -147,28 +146,25 @@ class StockServiceTest {
                 authenticatedUser
         );
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID))
                 .thenReturn(List.of(stock, additionalStock));
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final List<StockResponse> response =
+                stockService.getProductStockSummary();
 
-            // Act
-            final List<StockResponse> response =
-                    stockService.getProductStockSummary();
+        // Assert
+        assertAll(
+                () -> assertEquals(1, response.size()),
+                () -> assertEquals(
+                        TOTAL_STOCK_QUANTITY,
+                        response.get(0).availableQuantity()
+                )
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertEquals(1, response.size()),
-                    () -> assertEquals(
-                            TOTAL_STOCK_QUANTITY,
-                            response.get(0).availableQuantity()
-                    )
-            );
-
-            verify(stockRepository)
-                    .findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID);
-        }
+        verify(stockRepository)
+                .findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID);
     }
 
     @Test
@@ -190,25 +186,22 @@ class StockServiceTest {
                 authenticatedUser
         );
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID))
                 .thenReturn(List.of(laterStock, soonToExpireStock));
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final List<StockResponse> response =
+                stockService.getProductStockSummary();
 
-            // Act
-            final List<StockResponse> response =
-                    stockService.getProductStockSummary();
+        // Assert
+        assertEquals(
+                SOON_TO_EXPIRE_DATE,
+                response.get(0).nextToExpireDate()
+        );
 
-            // Assert
-            assertEquals(
-                    SOON_TO_EXPIRE_DATE,
-                    response.get(0).nextToExpireDate()
-            );
-
-            verify(stockRepository)
-                    .findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID);
-        }
+        verify(stockRepository)
+                .findByProduct_Company_IdAndProduct_DeletedFalse(COMPANY_ID);
     }
 
     @Test
@@ -216,25 +209,22 @@ class StockServiceTest {
         // Arrange
         final StockRequest request = criarStockRequestValido();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(PRODUCT_ID))
                 .thenReturn(Optional.of(product));
 
         when(stockRepository.save(any(Stock.class)))
                 .thenReturn(stock);
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final StockBatchResponse response =
+                stockService.create(PRODUCT_ID, request);
 
-            // Act
-            final StockBatchResponse response =
-                    stockService.create(PRODUCT_ID, request);
+        // Assert
+        assertNotNull(response);
 
-            // Assert
-            assertNotNull(response);
-
-            verify(productRepository).findByIdAndDeletedFalse(PRODUCT_ID);
-            verify(stockRepository).save(any(Stock.class));
-        }
+        verify(productRepository).findByIdAndDeletedFalse(PRODUCT_ID);
+        verify(stockRepository).save(any(Stock.class));
     }
 
     @Test
@@ -242,22 +232,19 @@ class StockServiceTest {
         // Arrange
         final StockRequest request = criarStockRequestValido();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(productRepository.findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID))
                 .thenReturn(Optional.empty());
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> stockService.create(NONEXISTENT_PRODUCT_ID, request);
 
-            // Act
-            final Executable action =
-                    () -> stockService.create(NONEXISTENT_PRODUCT_ID, request);
+        // Assert
+        assertThrows(ResourceNotFoundException.class, action);
 
-            // Assert
-            assertThrows(ResourceNotFoundException.class, action);
-
-            verify(productRepository)
-                    .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
-        }
+        verify(productRepository)
+                .findByIdAndDeletedFalse(NONEXISTENT_PRODUCT_ID);
     }
 
     @Test
@@ -266,17 +253,14 @@ class StockServiceTest {
         final StockRequest request = criarStockRequestValido();
 
         authenticatedUser.setDeleted(true);
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> stockService.create(PRODUCT_ID, request);
 
-            // Act
-            final Executable action =
-                    () -> stockService.create(PRODUCT_ID, request);
-
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-        }
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
     }
 
     @Test
@@ -284,37 +268,34 @@ class StockServiceTest {
         // Arrange
         final StockRequest request = criarStockUpdateRequestValido();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByIdAndProduct_DeletedFalse(STOCK_ID))
                 .thenReturn(Optional.of(stock));
 
         when(stockRepository.save(any(Stock.class)))
                 .thenReturn(stock);
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final StockBatchResponse response =
+                stockService.update(STOCK_ID, request);
 
-            // Act
-            final StockBatchResponse response =
-                    stockService.update(STOCK_ID, request);
+        // Assert
+        assertAll(
+                () -> assertNotNull(response),
+                () -> assertEquals(
+                        UPDATE_STOCK_QUANTITY,
+                        stock.getQuantity()
+                ),
+                () -> assertEquals(
+                        UPDATE_STOCK_EXPIRATION_DATE,
+                        stock.getExpirationDate()
+                )
+        );
 
-            // Assert
-            assertAll(
-                    () -> assertNotNull(response),
-                    () -> assertEquals(
-                            UPDATE_STOCK_QUANTITY,
-                            stock.getQuantity()
-                    ),
-                    () -> assertEquals(
-                            UPDATE_STOCK_EXPIRATION_DATE,
-                            stock.getExpirationDate()
-                    )
-            );
+        verify(stockRepository)
+                .findByIdAndProduct_DeletedFalse(STOCK_ID);
 
-            verify(stockRepository)
-                    .findByIdAndProduct_DeletedFalse(STOCK_ID);
-
-            verify(stockRepository).save(stock);
-        }
+        verify(stockRepository).save(stock);
     }
 
     @Test
@@ -324,73 +305,54 @@ class StockServiceTest {
 
         final Stock otherStock = criarLoteEstoqueOutraEmpresa();
 
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByIdAndProduct_DeletedFalse(STOCK_ID))
                 .thenReturn(Optional.of(otherStock));
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> stockService.update(STOCK_ID, request);
 
-            // Act
-            final Executable action =
-                    () -> stockService.update(STOCK_ID, request);
+        // Assert
+        assertThrows(AccessDeniedException.class, action);
 
-            // Assert
-            assertThrows(AccessDeniedException.class, action);
-
-            verify(stockRepository)
-                    .findByIdAndProduct_DeletedFalse(STOCK_ID);
-        }
+        verify(stockRepository)
+                .findByIdAndProduct_DeletedFalse(STOCK_ID);
     }
 
     @Test
     void delete_QuandoLotePertenceEmpresaDoUsuario_RemoveLote() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByIdAndProduct_DeletedFalse(STOCK_ID))
                 .thenReturn(Optional.of(stock));
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        stockService.delete(STOCK_ID);
 
-            // Act
-            stockService.delete(STOCK_ID);
+        // Assert
+        verify(stockRepository)
+                .findByIdAndProduct_DeletedFalse(STOCK_ID);
 
-            // Assert
-            verify(stockRepository)
-                    .findByIdAndProduct_DeletedFalse(STOCK_ID);
-
-            verify(stockRepository).deleteById(STOCK_ID);
-        }
+        verify(stockRepository).deleteById(STOCK_ID);
     }
 
     @Test
     void delete_QuandoLoteNaoExiste_LancaResourceNotFoundException() {
         // Arrange
+        when(authenticatedUserProvider.getCurrentUser()).thenReturn(authenticatedUser);
         when(stockRepository.findByIdAndProduct_DeletedFalse(NONEXISTENT_STOCK_ID))
                 .thenReturn(Optional.empty());
 
-        try (MockedStatic<SecurityUtils> securityUtils =
-                     mockSecurityUtils(authenticatedUser)) {
+        // Act
+        final Executable action =
+                () -> stockService.delete(NONEXISTENT_STOCK_ID);
 
-            // Act
-            final Executable action =
-                    () -> stockService.delete(NONEXISTENT_STOCK_ID);
+        // Assert
+        assertThrows(ResourceNotFoundException.class, action);
 
-            // Assert
-            assertThrows(ResourceNotFoundException.class, action);
-
-            verify(stockRepository)
-                    .findByIdAndProduct_DeletedFalse(NONEXISTENT_STOCK_ID);
-        }
-    }
-
-    private MockedStatic<SecurityUtils> mockSecurityUtils(final User user) {
-        final MockedStatic<SecurityUtils> securityUtils =
-                mockStatic(SecurityUtils.class);
-
-        securityUtils.when(SecurityUtils::getAuthenticatedUser)
-                .thenReturn(user);
-
-        return securityUtils;
+        verify(stockRepository)
+                .findByIdAndProduct_DeletedFalse(NONEXISTENT_STOCK_ID);
     }
 
     private Company criarEmpresaValida() {

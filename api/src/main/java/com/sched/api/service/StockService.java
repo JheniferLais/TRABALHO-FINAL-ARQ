@@ -10,7 +10,7 @@ import com.sched.api.exception.AccessDeniedException;
 import com.sched.api.exception.ResourceNotFoundException;
 import com.sched.api.repository.ProductRepository;
 import com.sched.api.repository.StockRepository;
-import com.sched.api.utils.SecurityUtils;
+import com.sched.api.security.AuthenticatedUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,10 +28,11 @@ public class StockService {
 
     private final StockRepository stockRepository;
     private final ProductRepository productRepository;
+    private final AuthenticatedUserProvider authenticatedUserProvider;
 
     @Transactional(readOnly = true)
     public List<StockBatchResponse> getAll() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Long companyId = authUser.getCompany().getId();
 
         return stockRepository
@@ -43,7 +44,7 @@ public class StockService {
 
     @Transactional(readOnly = true)
     public List<StockResponse> getProductStockSummary() {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Long companyId = authUser.getCompany().getId();
 
         List<Stock> allStocks = stockRepository.findByProduct_Company_IdAndProduct_DeletedFalse(companyId);
@@ -58,7 +59,7 @@ public class StockService {
 
     @Transactional
     public StockBatchResponse create(Long id, StockRequest dto) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
@@ -100,7 +101,7 @@ public class StockService {
     }
 
     private Stock validateUserStockAccess(Long stockId) {
-        User authUser = SecurityUtils.getAuthenticatedUser();
+        User authUser = authenticatedUserProvider.getCurrentUser();
         Company company = authUser.getCompany();
 
         if(authUser.getDeleted() || company.getDeleted()){
@@ -143,17 +144,15 @@ public class StockService {
                 .max(LocalDateTime::compareTo)
                 .orElse(null);
 
-        LocalDateTime epoch = LocalDateTime.of(1970, 1, 1, 0, 0);
-
         LocalDateTime nextToExpire = productStocks.stream()
                 .map(Stock::getExpirationDate)
-                .filter(date -> date != null && !date.isEqual(epoch))
+                .filter(date -> date != null && !date.isEqual(Stock.NO_EXPIRATION))
                 .min(LocalDateTime::compareTo)
                 .orElse(null);
 
         LocalDateTime latestExpiration = productStocks.stream()
                 .map(Stock::getExpirationDate)
-                .filter(date -> date != null && !date.isEqual(epoch))
+                .filter(date -> date != null && !date.isEqual(Stock.NO_EXPIRATION))
                 .max(LocalDateTime::compareTo)
                 .orElse(null);
 
